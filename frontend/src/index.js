@@ -1,12 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Toaster } from 'sonner';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './contexts/auth-context.tsx';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import PrivateRoute from './components/auth/PrivateRoute.tsx';
+import LobbyListPage from './pages/LobbyListPage.tsx';
+import LobbyRoomPage from './pages/LobbyRoomPage.tsx';
 
 
 
@@ -24,16 +28,27 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <PrivateRoute/>,
+    children: [
+      { index: true, element: <Navigate to="/lobby" replace /> },
+      { path: "lobby", element: <LobbyListPage /> },
+      { path: "lobby/:id", element: <LobbyRoomPage /> },
+    ],
   },
+
 ]);
+
+const queryClient = new QueryClient();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+        <Toaster position="bottom-right" richColors />
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );
 

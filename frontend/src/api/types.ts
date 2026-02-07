@@ -26,3 +26,32 @@ export interface AuthTokenResponse {
   token?: string;
   user?: User;
 }
+
+export interface GamePlayer {
+  id: number;
+  game_id: number;
+  user_id: number;
+  seat_number: number;
+  coins: number;
+  is_eliminated: boolean;
+  is_ready: boolean;
+  user?: User;
+}
+
+export interface Game {
+  id: number;
+  created_by_id: number | null;
+  status: "waiting" | "in_progress" | "finished" | "cancelled";
+  max_players: number;
+  current_turn_player_id: number | null;
+  turn_phase: string | null;
+  finished_at: string | null;
+  created_at: string;
+  updated_at: string;
+  players?: GamePlayer[];
+}
+
+/** Game with host flag, returned by the current-game API */
+export interface CurrentGame extends Game {
+  host: boolean;
+}

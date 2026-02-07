@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/auth-context.tsx";
 import { getItem } from "../../utils/persistentStorage.ts";
 import { StorageKey } from "../../hooks/storage-data/index.ts";
 
-interface PrivateRouteProps {
-  children?: unknown;
-}
-
-export default function PrivateRoute({ children }: PrivateRouteProps) {
+export default function PrivateRoute() {
   const navigate = useNavigate();
   const { isTokenExpired, refreshToken } = useAuth();
   const [isValidating, setIsValidating] = useState(true);
@@ -71,5 +67,5 @@ export default function PrivateRoute({ children }: PrivateRouteProps) {
     );
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 }

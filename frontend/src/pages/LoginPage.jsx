@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../contexts/auth-context.tsx";
+import AuthMediaStack from "../components/auth/AuthMediaStack";
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, error, setError } = useAuth();
@@ -15,7 +16,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      navigate("/", { replace: true });
+      navigate("/lobby", { replace: true });
     } catch {
       // Error handled by auth context
     } finally {
@@ -23,13 +24,28 @@ export default function LoginPage() {
     }
   };
 
+
+  async function handleLogin (e) {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await login(email, password);
+      navigate("/lobby", { replace: true });
+    } catch {
+      // Error handled by auth context
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate">
       <p className="font-gothic text-center text-3xl md:text-4xl font-black tracking-widest text-light/95 drop-shadow-md pt-8 md:pt-10">
         COUP
       </p>
       <div className="flex-1 flex items-center justify-center p-6 md:p-10">
-        <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-stretch">
+        <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-stretch">
           {/* Form card (left on desktop) */}
           <div className="flex justify-center items-center order-2 md:order-1 min-h-[50vh] md:min-h-0">
             <motion.div
@@ -48,7 +64,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form className="space-y-6">
                   <div>
                     <label
                       htmlFor="email"
@@ -101,7 +117,7 @@ export default function LoginPage() {
                     </p>
                   )}
                   <button
-                    type="submit"
+                    onClick={(e) => handleLogin(e)}
                     disabled={isSubmitting}
                     className="w-full py-2.5 rounded-md bg-accent hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold shadow-lg shadow-accent/20 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-slate transition-all duration-200 active:scale-[0.99]"
                   >
@@ -122,14 +138,9 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          {/* Image: same width and height as form column (hidden on mobile) */}
-          <div className="hidden md:block relative order-1 md:order-2 min-h-0 w-full max-w-lg h-full">
-            <img
-              src="/img.webp"
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover rounded-xl"
-            />
-            <div className="absolute inset-0 bg-slate/20 rounded-xl" />
+          {/* How to play video + actions summary stack (toggle on desktop, swipe on mobile) */}
+          <div className="flex justify-center items-center order-1 md:order-2 min-h-[320px] md:min-h-0 w-full">
+            <AuthMediaStack />
           </div>
         </div>
       </div>

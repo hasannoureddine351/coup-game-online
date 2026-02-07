@@ -4,7 +4,7 @@ import axios, {
   AxiosResponse,
   AxiosRequestConfig,
 } from "axios";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { getItem } from "../utils/persistentStorage.ts";
 import { StorageKey } from "../hooks/storage-data/index.ts";
 import { extractErrorMessage } from "./errorUtils.ts";

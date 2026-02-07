@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Models\User;
+
 class Game extends Model
 {
     /**
@@ -14,6 +16,7 @@ class Game extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'created_by_id',
         'status',
         'max_players',
         'current_turn_player_id',
@@ -32,6 +35,14 @@ class Game extends Model
             'finished_at' => 'datetime',
             'max_players' => 'integer',
         ];
+    }
+
+    /**
+     * Get the user who created the game.
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
     }
 
     /**

@@ -13,14 +13,6 @@ use Illuminate\Support\Facades\Validator;
 class AuthController extends Controller
 {
     /**
-     * Create a new AuthController instance.
-     */
-    public function __construct()
-    {
-        $this->middleware('auth:api', ['except' => ['login', 'register', 'refresh']]);
-    }
-
-    /**
      * Get a JWT via given credentials.
      */
     public function login(Request $request): JsonResponse
