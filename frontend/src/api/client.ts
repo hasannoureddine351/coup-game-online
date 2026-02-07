@@ -27,7 +27,7 @@ class ApiClient {
       (config) => {
         const token = getItem(StorageKey.ACCESS_TOKEN);
         if (token) {
-          config.headers.Authorization = `JWT ${token}`;
+          config.headers.Authorization = `Bearer ${token}`;
         }
 
         if (!(config.data instanceof FormData)) {

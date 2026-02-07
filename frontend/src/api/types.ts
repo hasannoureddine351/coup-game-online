@@ -18,6 +18,7 @@ export interface SignupPayload {
   username: string;
   email: string;
   password: string;
+  confirmPassword: string;
 }
 
 export interface AuthTokenResponse {

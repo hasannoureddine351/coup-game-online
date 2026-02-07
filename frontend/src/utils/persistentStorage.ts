@@ -42,28 +42,3 @@ export function clear(): void {
   }
 }
 
-export function clearFiltersAndViews(): void {
-  if (typeof window !== "undefined") {
-    try {
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i);
-        if (key) {
-          if (
-            key.startsWith("typeFilter_") ||
-            key.startsWith("statusFilter_") ||
-            key.startsWith("viewPreference_") ||
-            key.startsWith("mapFilters_") ||
-            key.startsWith("mapViewTab_")
-          ) {
-            keysToRemove.push(key);
-          }
-        }
-      }
-      keysToRemove.forEach((k) => window.localStorage.removeItem(k));
-      window.localStorage.setItem("_orgSwitchInProgress", "true");
-    } catch (error) {
-      console.warn("Failed to clear filters and views:", error);
-    }
-  }
-}

@@ -11,6 +11,12 @@ module.exports = {
         'coup-gold': '#d4af37',
         'coup-dark': '#1a1a2e',
         'coup-darker': '#0f0f1e',
+        // Auth / app theme palette
+        slate: '#294a5b',    // Background (deep slate)
+        panel: '#5c7c94',    // Panels/sections (desaturated teal)
+        accent: '#e63946',   // Accent/highlight (lively coral red)
+        light: '#ff9f68',   // Light accents/text (warm coral orange)
+        contrast: '#2c3c44', // Deep text/contrast (very dark blue-gray)
       },
       animation: {
         'card-flip': 'flip 0.6s ease-in-out',

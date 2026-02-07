@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/auth-context";
-import { getItem } from "../../utils/persistentStorage";
-import { StorageKey } from "../../hooks/storage-data";
+import { useAuth } from "../../contexts/auth-context.tsx";
+import { getItem } from "../../utils/persistentStorage.ts";
+import { StorageKey } from "../../hooks/storage-data/index.ts";
 
 interface PrivateRouteProps {
   children?: unknown;

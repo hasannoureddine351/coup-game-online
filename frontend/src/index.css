@@ -17,6 +17,44 @@
   }
 }
 
+/* Gothic text (Cloister Black) for auth hero */
+.font-gothic {
+  font-family: 'Cloister Black', serif;
+}
+
+/* Gothic / barbed-wire style frame around the screen edges */
+.gothic-frame {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  border: 14px solid #2c3c44;
+  box-shadow:
+    inset 0 0 0 4px rgba(124, 172, 196, 0.25),
+    inset 0 0 0 8px #2c3c44,
+    0 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 768px) {
+  .gothic-frame {
+    border-width: 18px;
+    box-shadow:
+      inset 0 0 0 5px rgba(124, 172, 196, 0.2),
+      inset 0 0 0 10px #2c3c44,
+      0 0 0 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Clip character art to inner window so it never overflows the card border */
+.card-character-window {
+  clip-path: inset(8% round 8px);
+}
+@media (min-width: 768px) {
+  .card-character-window {
+    clip-path: inset(10% round 10px);
+  }
+}
+
 @layer components {
   /* Card styles */
   .card-base {
