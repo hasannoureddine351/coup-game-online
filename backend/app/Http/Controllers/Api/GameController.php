@@ -5,6 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\GamePlayer;
+use App\Models\GameAction;
+use App\Models\Block;
+use App\Services\GameService;
+use App\Events\GameStarted;
+use App\Events\ActionDeclared;
+use App\Events\ChallengeMade;
+use App\Events\BlockDeclared;
+use App\Events\GameStateUpdated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -124,7 +132,16 @@ class GameController extends Controller
         }
 
         $game = Game::query()
-            ->with(['players.user'])
+            ->with([
+                'players.user',
+                'players.cards' => function($q) {
+                    $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
+                },
+            'actions' => function($q) {
+                $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+            },
+            'exchangeTempDeckCards',
+            ])
             ->whereHas('players', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
@@ -197,6 +214,300 @@ class GameController extends Controller
             $game->delete();
         }
         return response()->json(['message' => 'Left game successfully.']);
+    }
+
+    public function toggleReady(int $id): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $game = Game::query()->find($id);
+        if (! $game || $game->status !== 'waiting') {
+            return response()->json(['message' => 'Game not found or not in waiting state.'], 404);
+        }
+
+        $gamePlayer = $game->players()->where('user_id', $user->id)->first();
+        if (! $gamePlayer) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        $gamePlayer->is_ready = !$gamePlayer->is_ready;
+        $gamePlayer->save();
+
+        event(new GameStateUpdated($game->fresh(['players.user']), "{$user->username} is " . ($gamePlayer->is_ready ? 'ready' : 'not ready')));
+
+        return response()->json($game->fresh(['players.user']));
+    }
+
+    public function start(int $id, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $game = Game::query()->find($id);
+        if (! $game) {
+            return response()->json(['message' => 'Game not found.'], 404);
+        }
+
+        try {
+            $game = $gameService->startGame($game, $user->id);
+            event(new GameStarted($game));
+            return response()->json($game);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function submitAction(int $id, Request $request, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $game = Game::query()->find($id);
+        if (! $game) {
+            return response()->json(['message' => 'Game not found.'], 404);
+        }
+
+        $player = $game->players()->where('user_id', $user->id)->first();
+        if (! $player) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        $validated = $request->validate([
+            'action_type' => 'required|string|in:Income,Foreign_Aid,Tax,Assassinate,Steal,Exchange,Coup',
+            'target_player_id' => 'nullable|integer|exists:game_players,id',
+            'claimed_character' => 'nullable|string|in:Duke,Assassin,Captain,Ambassador,Contessa'
+        ]);
+
+        try {
+            $action = $gameService->submitAction($game, $player->id, $validated);
+            event(new ActionDeclared($action));
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            return response()->json($action);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function submitChallenge(int $gameId, int $actionId, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $action = GameAction::query()->find($actionId);
+        if (! $action || $action->game_id !== $gameId) {
+            return response()->json(['message' => 'Action not found.'], 404);
+        }
+
+        $game = $action->game;
+        $challenger = $game->players()->where('user_id', $user->id)->first();
+        if (! $challenger) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        try {
+            $challenge = $gameService->submitChallenge($action, $challenger->id);
+            event(new ChallengeMade($challenge));
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            return response()->json($challenge);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function submitBlock(int $gameId, int $actionId, Request $request, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $action = GameAction::query()->find($actionId);
+        if (! $action || $action->game_id !== $gameId) {
+            return response()->json(['message' => 'Action not found.'], 404);
+        }
+
+        $game = $action->game;
+        $blocker = $game->players()->where('user_id', $user->id)->first();
+        if (! $blocker) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        $validated = $request->validate([
+            'claimed_character' => 'required|string|in:Duke,Contessa,Captain,Ambassador'
+        ]);
+
+        try {
+            $block = $gameService->submitBlock($action, $blocker->id, $validated['claimed_character']);
+            event(new BlockDeclared($block));
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            return response()->json($block);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function submitBlockChallenge(int $gameId, int $actionId, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $action = GameAction::query()->find($actionId);
+        if (! $action || $action->game_id !== $gameId) {
+            return response()->json(['message' => 'Action not found.'], 404);
+        }
+
+        $block = $action->block;
+        if (! $block) {
+            return response()->json(['message' => 'No block to challenge.'], 404);
+        }
+
+        $game = $action->game;
+        $challenger = $game->players()->where('user_id', $user->id)->first();
+        if (! $challenger) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        try {
+            $challenge = $gameService->submitBlockChallenge($block, $challenger->id);
+            event(new ChallengeMade($challenge));
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            return response()->json($challenge);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function resolveAction(int $gameId, int $actionId, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $action = GameAction::query()->find($actionId);
+        if (! $action || $action->game_id !== $gameId) {
+            return response()->json(['message' => 'Action not found.'], 404);
+        }
+
+        $game = $action->game;
+
+        try {
+            $gameService->resolveAction($action);
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            return response()->json(['message' => 'Action resolved successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function passPhase(int $id, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $game = Game::query()->find($id);
+        if (! $game) {
+            return response()->json(['message' => 'Game not found.'], 404);
+        }
+
+        try {
+            $gameService->passPhase($game);
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards']), 'Phase passed'));
+            return response()->json(['message' => 'Phase passed successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function chooseCardToLose(int $gameId, Request $request, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $game = Game::query()->find($gameId);
+        if (! $game) {
+            return response()->json(['message' => 'Game not found.'], 404);
+        }
+
+        $player = $game->players()->where('user_id', $user->id)->first();
+        if (! $player) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        $validated = $request->validate([
+            'card_id' => 'required|integer|exists:player_cards,id'
+        ]);
+
+        try {
+            $gameService->chooseCardToLose($player, $validated['card_id']);
+            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards']), "{$user->username} lost influence"));
+            return response()->json(['message' => 'Card revealed successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function finalizeAmbassadorExchange(int $id, Request $request, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $game = Game::query()->find($id);
+        if (! $game) {
+            return response()->json(['message' => 'Game not found.'], 404);
+        }
+
+        $player = $game->players()->where('user_id', $user->id)->first();
+        if (! $player) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        $validated = $request->validate([
+            'keep_hand_card_ids' => 'present|array|max:2',
+            'keep_hand_card_ids.*' => 'integer|exists:player_cards,id',
+            'keep_deck_card_ids' => 'present|array|max:2',
+            'keep_deck_card_ids.*' => 'integer|exists:game_deck,id',
+        ]);
+
+        try {
+            $gameService->finalizeAmbassadorExchange(
+                $game,
+                $player,
+                $validated['keep_hand_card_ids'],
+                $validated['keep_deck_card_ids']
+            );
+
+            $fresh = $game->fresh([
+                'players.user',
+                'players.cards',
+                'exchangeTempDeckCards',
+                'actions' => function ($q) {
+                    $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+                },
+            ]);
+            event(new GameStateUpdated($fresh, "{$user->username} finished exchange"));
+
+            return response()->json(['message' => 'Exchange completed']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
     }
 
 }

@@ -18,6 +18,7 @@ class Block extends Model
         'claimed_character',
         'was_challenged',
         'outcome',
+        'created_at',
     ];
 
     /**
@@ -44,7 +45,13 @@ class Block extends Model
      */
     public function gameAction(): BelongsTo
     {
-        return $this->belongsTo(GameAction::class);
+        return $this->belongsTo(GameAction::class, 'game_action_id');
+    }
+
+    /** Alias for {@see gameAction()} — events and API payloads use `action`. */
+    public function action(): BelongsTo
+    {
+        return $this->belongsTo(GameAction::class, 'game_action_id');
     }
 
     /**

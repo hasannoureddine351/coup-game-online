@@ -70,6 +70,14 @@ class Game extends Model
     }
 
     /**
+     * Deck rows drawn for an in-progress Ambassador exchange (status exchange_temp).
+     */
+    public function exchangeTempDeckCards(): HasMany
+    {
+        return $this->hasMany(GameDeck::class)->where('status', 'exchange_temp');
+    }
+
+    /**
      * Get the deck for this game.
      */
     public function deck(): HasMany

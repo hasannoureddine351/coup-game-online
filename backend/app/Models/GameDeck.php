@@ -23,6 +23,7 @@ class GameDeck extends Model
         'game_id',
         'card_type',
         'status',
+        'created_at',
     ];
 
     /**

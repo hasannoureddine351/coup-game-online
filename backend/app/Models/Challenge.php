@@ -18,6 +18,7 @@ class Challenge extends Model
         'challenged_player_id',
         'outcome',
         'revealed_card_type',
+        'created_at',
     ];
 
     /**
@@ -32,7 +33,13 @@ class Challenge extends Model
      */
     public function gameAction(): BelongsTo
     {
-        return $this->belongsTo(GameAction::class);
+        return $this->belongsTo(GameAction::class, 'game_action_id');
+    }
+
+    /** Alias for {@see gameAction()} — events and API payloads use `action`. */
+    public function action(): BelongsTo
+    {
+        return $this->belongsTo(GameAction::class, 'game_action_id');
     }
 
     /**

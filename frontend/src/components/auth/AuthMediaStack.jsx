@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function AuthMediaStack() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -16,13 +16,21 @@ export default function AuthMediaStack() {
 
   return (
     <div className="w-full max-w-5xl md:max-w-6xl mx-auto md:mx-0">
-      <div className="relative w-full aspect-[8/5] md:aspect-[16/9] min-h-[320px] md:min-h-[480px] rounded-xl overflow-hidden">
-        <VideoLayer
-          videoRef={videoRef}
-          isPlaying={isPlaying}
-          onPlayPause={togglePlayPause}
-          onPlayingChange={setIsPlaying}
-        />
+      <div className="relative p-4 md:p-6 rounded-2xl bg-neutral-800 border-4 border-neutral-700 shadow-2xl shadow-black/50">
+        {/* Antenna */}
+        <div className="absolute -top-6 md:-top-8 left-1/2 -translate-x-1/2 flex gap-8 md:gap-12">
+          <div className="w-1 md:w-1.5 h-8 md:h-12 bg-neutral-600 rounded-full -rotate-12 origin-bottom" />
+          <div className="w-1 md:w-1.5 h-8 md:h-12 bg-neutral-600 rounded-full rotate-12 origin-bottom" />
+        </div>
+        {/* Screen */}
+        <div className="relative w-full aspect-[8/5] md:aspect-[16/9] min-h-[320px] md:min-h-[480px] rounded-lg overflow-hidden bg-black border-2 border-neutral-900">
+          <VideoLayer
+            videoRef={videoRef}
+            isPlaying={isPlaying}
+            onPlayPause={togglePlayPause}
+            onPlayingChange={setIsPlaying}
+          />
+        </div>
       </div>
     </div>
   );
@@ -32,6 +40,14 @@ function VideoLayer({ videoRef, isPlaying, onPlayPause, onPlayingChange }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [timestamp, setTimestamp] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimestamp(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const updateProgress = () => {
     const v = videoRef.current;
@@ -84,6 +100,20 @@ function VideoLayer({ videoRef, isPlaying, onPlayPause, onPlayingChange }) {
           onSeeked={handleSeeked}
         />
         <div className="absolute inset-0 bg-slate/20 rounded-t-xl pointer-events-none" />
+        
+        {/* Surveillance feed overlays */}
+        <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
+          <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-500/50" />
+          <span className="font-mono text-red-500 text-xs md:text-sm font-semibold tracking-wider">REC</span>
+        </div>
+        
+        <div className="absolute top-3 right-3 font-mono text-white/90 text-xs md:text-sm bg-black/50 px-2 py-1 rounded pointer-events-none">
+          {timestamp.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} {timestamp.toLocaleTimeString('en-US', { hour12: false })}
+        </div>
+        
+        <div className="absolute bottom-3 left-3 font-mono text-white/80 text-xs bg-black/50 px-2 py-1 rounded pointer-events-none">
+          CAM-01 · MAIN LOBBY
+        </div>
         <button
           type="button"
           onClick={(e) => {

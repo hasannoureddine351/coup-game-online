@@ -44,6 +44,9 @@ export default function LobbyListPage() {
 
   const playerCount = (g: Game) => g.players?.length ?? 0;
   const hasActiveGame = inGame != null && Object.keys(inGame).length > 0;
+  const hasWaitingGame = hasActiveGame && (inGame as Game)?.status === "waiting";
+  const currentGameInList = games.some((g) => g.id === (inGame as Game)?.id);
+  const showCurrentGameCard = hasActiveGame && !currentGameInList;
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -110,7 +113,7 @@ export default function LobbyListPage() {
             </h1>
             <button
               onClick={handleCreateGame}
-              disabled={isCreating || hasActiveGame}
+              disabled={isCreating || hasWaitingGame}
               className="btn-primary px-6 py-2 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isCreating ? "Creating…" : "Create Game"}
@@ -121,7 +124,33 @@ export default function LobbyListPage() {
             <div className="flex justify-center py-16">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-t-transparent border-coup-gold" />
             </div>
-          ) : games.length === 0 ? (
+          ) : (
+            <>
+              {showCurrentGameCard && (() => {
+                const g = inGame as Game;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 rounded-lg bg-coup-gold/10 border-2 border-coup-gold/50"
+                  >
+                    <p className="text-light/90 font-medium mb-1">
+                      Your current game #{g.id}
+                      {g.status === "in_progress" ? " (in progress)" : ""}
+                    </p>
+                    <p className="text-light/60 text-sm mb-3">
+                      {playerCount(g)} / {g.max_players} players
+                    </p>
+                    <button
+                      onClick={() => navigate(g.status === "in_progress" ? "/game" : `/lobby/${g.id}`, { replace: true })}
+                      className="btn-primary px-4 py-2 text-sm"
+                    >
+                      {g.status === "in_progress" ? "Enter game" : "Enter lobby"}
+                    </button>
+                  </motion.div>
+                );
+              })()}
+              {games.length === 0 && !showCurrentGameCard ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -130,6 +159,8 @@ export default function LobbyListPage() {
               <p className="text-light/80 mb-4">No lobbies waiting for players.</p>
               <p className="text-light/60 text-sm">Create a game to get started.</p>
             </motion.div>
+          ) : games.length === 0 ? (
+            null
           ) : (
             <ul className="space-y-3">
               {games.map((game) => (
@@ -185,6 +216,8 @@ export default function LobbyListPage() {
                 </motion.li>
               ))}
             </ul>
+          )}
+            </>
           )}
         </div>
       </main>

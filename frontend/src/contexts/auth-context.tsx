@@ -10,6 +10,7 @@ import type { SignupPayload } from "../api/types.ts";
 export type { User };
 
 interface AuthContextType {
+  user: User | null;
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
   isLoading: boolean;
@@ -27,6 +28,7 @@ interface AuthContextType {
   signup: (payload: SignupPayload) => Promise<void>;
   isTokenExpired: () => boolean;
   refreshToken: () => Promise<void>;
+  token: string | null;
 }
 
 const AuthContext = createContext(undefined as AuthContextType | undefined);
@@ -130,6 +132,7 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
   }, [storage]);
 
   const value: AuthContextType = {
+    user: currentUser,
     currentUser,
     setCurrentUser,
     isLoading,
@@ -147,6 +150,7 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
     signup,
     isTokenExpired,
     refreshToken,
+    token: getItem(StorageKey.ACCESS_TOKEN),
   };
 
   return (

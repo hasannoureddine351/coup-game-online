@@ -22,6 +22,7 @@ class GameAction extends Model
         'claimed_character',
         'coins_cost',
         'status',
+        'created_at',
     ];
 
     /**

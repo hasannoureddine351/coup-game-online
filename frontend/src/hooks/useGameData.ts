@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { gameService } from "../api/services/gameService.ts";
-import type { Game, CurrentGame } from "../api/types.ts";
+import type { Game, CurrentGame, ActionType, CharacterType } from "../api/types.ts";
 
 export const gameKeys = {
   all: ["games"] as const,
@@ -29,8 +29,8 @@ export const useGameData = () => {
     return useQuery({
       queryKey: gameKeys.currentGame(),
       queryFn: async () => {
-          const data = await gameService.currentGame();
-        return data as CurrentGame | null;
+        const data = await gameService.currentGame();
+        return data;
       },
       refetchInterval: options?.refetchInterval,
     });
@@ -64,6 +64,90 @@ export const useGameData = () => {
     },
   });
 
+  const toggleReady = useMutation({
+    mutationFn: (gameId: number) => gameService.toggleReady(gameId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const startGame = useMutation({
+    mutationFn: (gameId: number) => gameService.start(gameId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const submitAction = useMutation({
+    mutationFn: ({ gameId, actionData }: { gameId: number; actionData: { action_type: ActionType; target_player_id?: number; claimed_character?: CharacterType } }) =>
+      gameService.submitAction(gameId, actionData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const submitChallenge = useMutation({
+    mutationFn: ({ gameId, actionId }: { gameId: number; actionId: number }) =>
+      gameService.submitChallenge(gameId, actionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const submitBlock = useMutation({
+    mutationFn: ({ gameId, actionId, claimedCharacter }: { gameId: number; actionId: number; claimedCharacter: CharacterType }) =>
+      gameService.submitBlock(gameId, actionId, claimedCharacter),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const submitBlockChallenge = useMutation({
+    mutationFn: ({ gameId, actionId }: { gameId: number; actionId: number }) =>
+      gameService.submitBlockChallenge(gameId, actionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const resolveAction = useMutation({
+    mutationFn: ({ gameId, actionId }: { gameId: number; actionId: number }) =>
+      gameService.resolveAction(gameId, actionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const passPhase = useMutation({
+    mutationFn: (gameId: number) => gameService.passPhase(gameId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const chooseCardToLose = useMutation({
+    mutationFn: ({ gameId, cardId }: { gameId: number; cardId: number }) =>
+      gameService.chooseCardToLose(gameId, cardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const finalizeExchange = useMutation({
+    mutationFn: ({
+      gameId,
+      keep_hand_card_ids,
+      keep_deck_card_ids,
+    }: {
+      gameId: number;
+      keep_hand_card_ids: number[];
+      keep_deck_card_ids: number[];
+    }) => gameService.finalizeExchange(gameId, { keep_hand_card_ids, keep_deck_card_ids }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
   return {
     useGameListQuery,
     useCurrentGameQuery,
@@ -71,5 +155,15 @@ export const useGameData = () => {
     joinGame,
     leaveGame,
     deleteGame,
+    toggleReady,
+    startGame,
+    submitAction,
+    submitChallenge,
+    submitBlock,
+    submitBlockChallenge,
+    resolveAction,
+    passPhase,
+    chooseCardToLose,
+    finalizeExchange,
   };
 };

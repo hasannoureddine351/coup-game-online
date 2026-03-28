@@ -15,6 +15,16 @@ export const ENDPOINTS = {
     DELETE: (id: number) => `/games/${id}`,
     CURRENT_GAME: `/games/current-game`,
     LEAVE: (id: number) => `/games/${id}/leave`,
+    READY: (id: number) => `/games/${id}/ready`,
+    START: (id: number) => `/games/${id}/start`,
+    SUBMIT_ACTION: (id: number) => `/games/${id}/actions`,
+    CHALLENGE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/challenge`,
+    BLOCK: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/block`,
+    BLOCK_CHALLENGE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/block-challenge`,
+    RESOLVE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/resolve`,
+    PASS: (id: number) => `/games/${id}/pass`,
+    CHOOSE_CARD: (id: number) => `/games/${id}/choose-card`,
+    EXCHANGE_FINALIZE: (id: number) => `/games/${id}/exchange/finalize`,
   },
 } as const;
 

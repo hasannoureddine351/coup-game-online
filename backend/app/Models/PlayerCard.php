@@ -18,6 +18,7 @@ class PlayerCard extends Model
         'is_revealed',
         'is_discarded',
         'position',
+        'created_at',
     ];
 
     /**

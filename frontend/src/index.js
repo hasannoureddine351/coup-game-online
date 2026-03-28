@@ -11,6 +11,7 @@ import SignupPage from './pages/SignupPage';
 import PrivateRoute from './components/auth/PrivateRoute.tsx';
 import LobbyListPage from './pages/LobbyListPage.tsx';
 import LobbyRoomPage from './pages/LobbyRoomPage.tsx';
+import GamePage from './pages/GamePage.tsx';
 
 
 
@@ -32,6 +33,7 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/lobby" replace /> },
       { path: "lobby", element: <LobbyListPage /> },
       { path: "lobby/:id", element: <LobbyRoomPage /> },
+      { path: "game", element: <GamePage /> },
     ],
   },
 
