@@ -1,0 +1,61 @@
+name: Deploy to EC2 (dev)
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+            echo "Ì∫Ä Starting deployment..."
+
+            cd ~/coup-game-online
+
+            echo "Ì≥• Pull latest code"
+            git pull origin dev
+
+            # ======================
+            # Ì¥ß Backend (Laravel)
+            # ======================
+            echo "Ì¥ß Updating Laravel backend..."
+            cd backend
+
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+
+            php artisan migrate --force
+            php artisan config:clear
+            php artisan cache:clear
+
+            echo "Ì¥Å Restarting Laravel server..."
+            pkill -f "artisan serve" || true
+            nohup php artisan serve --host=127.0.0.1 --port=8000 > laravel.log 2>&1 &
+
+            # ======================
+            # ‚öõÔ∏è Frontend (React - CRA)
+            # ======================
+            echo "‚öõÔ∏è Building React frontend..."
+            cd ../frontend
+
+            npm install
+            npm run build
+
+            echo "Ì≥¶ Deploying frontend to Nginx..."
+            sudo rm -rf /var/www/html/*
+            sudo cp -r build/* /var/www/html/
+
+            echo "Ì¥Å Reloading Nginx..."
+            sudo systemctl reload nginx
+
+            echo "‚úÖ Deployment finished!"
