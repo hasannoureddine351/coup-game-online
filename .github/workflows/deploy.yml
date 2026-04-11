@@ -16,6 +16,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # Required if EC2_SSH_KEY was created with a passphrase (ssh-keygen -N "...")
+          passphrase: ${{ secrets.EC2_SSH_KEY_PASSPHRASE }}
           script: |
             echo "🚀 Starting deployment..."
 
