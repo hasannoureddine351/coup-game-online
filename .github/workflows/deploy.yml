@@ -39,7 +39,15 @@ jobs:
             php artisan cache:clear
 
             echo "🐘 Restarting Laravel server..."
-            pkill -f "artisan serve" || true
+            # Do not use pkill -f "artisan serve": the SSH bash -c '...' cmdline
+            # contains that substring, so pkill can kill this script (exit 143).
+            if command -v fuser >/dev/null 2>&1; then
+              fuser -k 8000/tcp 2>/dev/null || true
+            elif command -v lsof >/dev/null 2>&1; then
+              PIDS=$(lsof -t -iTCP:8000 -sTCP:LISTEN 2>/dev/null || true)
+              if [ -n "$PIDS" ]; then kill $PIDS 2>/dev/null || true; fi
+            fi
+            sleep 1
             nohup php artisan serve --host=127.0.0.1 --port=8000 > laravel.log 2>&1 &
 
             # ======================
