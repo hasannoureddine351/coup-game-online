@@ -12,24 +12,22 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
-
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-
           script: |
-            echo "íº€ Starting deployment..."
+            echo "ğŸš€ Starting deployment..."
 
             cd ~/coup-game-online
 
-            echo "í³¥ Pull latest code"
+            echo "ğŸ“¥ Pull latest code"
             git pull origin dev
 
             # ======================
-            # í´§ Backend (Laravel)
+            # ğŸ˜ Backend (Laravel)
             # ======================
-            echo "í´§ Updating Laravel backend..."
+            echo "ğŸ˜ Updating Laravel backend..."
             cd backend
 
             composer install --no-interaction --prefer-dist --optimize-autoloader
@@ -38,7 +36,7 @@ jobs:
             php artisan config:clear
             php artisan cache:clear
 
-            echo "í´ Restarting Laravel server..."
+            echo "ğŸ˜ Restarting Laravel server..."
             pkill -f "artisan serve" || true
             nohup php artisan serve --host=127.0.0.1 --port=8000 > laravel.log 2>&1 &
 
@@ -51,11 +49,11 @@ jobs:
             npm install
             npm run build
 
-            echo "í³¦ Deploying frontend to Nginx..."
+            echo "ğŸš€ Deploying frontend to Nginx..."
             sudo rm -rf /var/www/html/*
             sudo cp -r build/* /var/www/html/
 
-            echo "í´ Reloading Nginx..."
+            echo "ğŸš€ Reloading Nginx..."
             sudo systemctl reload nginx
 
             echo "âœ… Deployment finished!"
