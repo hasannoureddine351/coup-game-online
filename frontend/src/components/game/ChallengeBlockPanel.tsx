@@ -24,6 +24,10 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
     return null;
   }
 
+  if (game.turn_phase === 'challenge_reveal') {
+    return null;
+  }
+
   const existingBlock = currentAction.block;
   const isActionTaker = Number(currentPlayer.id) === Number(currentAction.player_id);
   const isBlocker = Boolean(
@@ -48,8 +52,15 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
   const isBlockBeingChallengedPhase =
     game.turn_phase === 'challenge' && !!existingBlock && !existingBlock.was_challenged;
 
+  const challengeRow = currentAction.challenge;
+  const awaitingChallengeReveal =
+    Boolean(challengeRow) && (challengeRow?.outcome === null || challengeRow?.outcome === undefined);
+
   const isChallengeable =
-    Boolean(currentAction.claimed_character) && game.turn_phase === 'challenge' && !existingBlock;
+    Boolean(currentAction.claimed_character) &&
+    game.turn_phase === 'challenge' &&
+    !existingBlock &&
+    !awaitingChallengeReveal;
   const canDeclareBlock =
     Boolean(BLOCKABLE_CHARACTERS[currentAction.action_type]) && game.turn_phase === 'block' && mayActInOpenBlockPhase;
   const showChallengeBlockButton = isBlockBeingChallengedPhase && !isBlocker;

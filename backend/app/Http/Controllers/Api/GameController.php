@@ -21,6 +21,31 @@ use Illuminate\Support\Facades\DB;
 class GameController extends Controller
 {
     /**
+     * Eager loads for broadcasting / JSON when full game state is needed.
+     *
+     * @return array<string, mixed>
+     */
+    protected function relationsForGameStateBroadcast(): array
+    {
+        return [
+            'players.user',
+            'players.cards' => function ($q) {
+                $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
+            },
+            'actions' => function ($q) {
+                $q->orderBy('id', 'desc')->limit(150)->with([
+                    'player.user',
+                    'targetPlayer.user',
+                    'challenge.challenger.user',
+                    'challenge.challengedPlayer.user',
+                    'block.blocker.user',
+                ]);
+            },
+            'exchangeTempDeckCards',
+        ];
+    }
+
+    /**
      * List games (optionally filtered by status), or fetch a single game by id.
      */
     public function index(Request $request): JsonResponse
@@ -124,7 +149,7 @@ class GameController extends Controller
     /**
      * Get the current user's active game (if any).
      */
-    public function currentGame(): JsonResponse
+    public function currentGame(GameService $gameService): JsonResponse
     {
         $user = Auth::guard('api')->user();
         if (! $user) {
@@ -137,8 +162,14 @@ class GameController extends Controller
                 'players.cards' => function($q) {
                     $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
                 },
-            'actions' => function($q) {
-                $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+            'actions' => function ($q) {
+                $q->orderBy('id', 'desc')->limit(150)->with([
+                    'player.user',
+                    'targetPlayer.user',
+                    'challenge.challenger.user',
+                    'challenge.challengedPlayer.user',
+                    'block.blocker.user',
+                ]);
             },
             'exchangeTempDeckCards',
             ])
@@ -152,6 +183,9 @@ class GameController extends Controller
         if (! $game) {
             return response()->json(null);
         }
+
+        $gameService->syncChallengeRevealPhase($game);
+        // Do not call $game->refresh() here — refresh() drops eager-loaded relations and strips players.user / cards / nested actions from the JSON payload.
 
         $payload = $game->toArray();
         $payload['host'] = $game->created_by_id !== null
@@ -325,7 +359,7 @@ class GameController extends Controller
         try {
             $challenge = $gameService->submitChallenge($action, $challenger->id);
             event(new ChallengeMade($challenge));
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
             return response()->json($challenge);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -390,7 +424,39 @@ class GameController extends Controller
         try {
             $challenge = $gameService->submitBlockChallenge($block, $challenger->id);
             event(new ChallengeMade($challenge));
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
+            return response()->json($challenge);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
+    public function revealChallengeCard(int $gameId, int $actionId, Request $request, GameService $gameService): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'player_card_id' => 'required|integer|exists:player_cards,id',
+        ]);
+
+        $action = GameAction::query()->find($actionId);
+        if (! $action || $action->game_id !== $gameId) {
+            return response()->json(['message' => 'Action not found.'], 404);
+        }
+
+        $game = $action->game;
+        $player = $game->players()->where('user_id', $user->id)->first();
+        if (! $player) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
+        try {
+            $challenge = $gameService->revealChallengeCard($action, $player, $validated['player_card_id']);
+            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
+
             return response()->json($challenge);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -413,7 +479,7 @@ class GameController extends Controller
 
         try {
             $gameService->resolveAction($action);
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
             return response()->json(['message' => 'Action resolved successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -439,7 +505,7 @@ class GameController extends Controller
 
         try {
             $gameService->passPhase($game, $player);
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards']), 'Phase passed'));
+            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast()), 'Phase passed'));
             return response()->json(['message' => 'Phase passed successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -469,7 +535,7 @@ class GameController extends Controller
 
         try {
             $gameService->chooseCardToLose($player, $validated['card_id']);
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards']), "{$user->username} lost influence"));
+            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast()), "{$user->username} lost influence"));
             return response()->json(['message' => 'Card revealed successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -513,7 +579,13 @@ class GameController extends Controller
                 'players.cards',
                 'exchangeTempDeckCards',
                 'actions' => function ($q) {
-                    $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+                    $q->orderBy('id', 'desc')->limit(150)->with([
+                        'player.user',
+                        'targetPlayer.user',
+                        'challenge.challenger.user',
+                        'challenge.challengedPlayer.user',
+                        'block.blocker.user',
+                    ]);
                 },
             ]);
             event(new GameStateUpdated($fresh, "{$user->username} finished exchange"));

@@ -34,13 +34,9 @@ export const useGameData = () => {
         const data = await gameService.currentGame();
         return data;
       },
+      /** Default: no polling — WebSocket + mutations invalidate this query. Pass refetchInterval (e.g. 2000) for lobby/waiting screens. */
       refetchInterval:
-        options?.refetchInterval !== undefined
-          ? options.refetchInterval
-          : (query) => {
-              const d = query.state.data as Game | CurrentGame | null | undefined;
-              return d?.status === "finished" ? false : 2000;
-            },
+        options?.refetchInterval !== undefined ? options.refetchInterval : false,
     });
   };
 
@@ -132,6 +128,21 @@ export const useGameData = () => {
     },
   });
 
+  const revealChallengeCard = useMutation({
+    mutationFn: ({
+      gameId,
+      actionId,
+      playerCardId,
+    }: {
+      gameId: number;
+      actionId: number;
+      playerCardId: number;
+    }) => gameService.revealChallengeCard(gameId, actionId, playerCardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
   const resolveAction = useMutation({
     mutationFn: ({ gameId, actionId }: { gameId: number; actionId: number }) =>
       gameService.resolveAction(gameId, actionId),
@@ -183,6 +194,7 @@ export const useGameData = () => {
     submitChallenge,
     submitBlock,
     submitBlockChallenge,
+    revealChallengeCard,
     resolveAction,
     passPhase,
     chooseCardToLose,

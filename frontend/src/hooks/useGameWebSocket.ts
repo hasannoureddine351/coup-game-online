@@ -39,6 +39,10 @@ export const useGameWebSocket = (gameId: number | null, token: string | null, ca
       queryClient.invalidateQueries({ queryKey: gameKeys.list({ id: gameId }) });
     };
 
+    const invalidateLobbyListOnly = () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.list({ id: gameId }) });
+    };
+
     channel
       .listen('GameStarted', (event: any) => {
         invalidateGameQueries();
@@ -59,8 +63,10 @@ export const useGameWebSocket = (gameId: number | null, token: string | null, ca
       .listen('GameStateUpdated', (event: any) => {
         if (event?.game) {
           mergeGameIntoCurrentGameCache(queryClient, event.game as Game);
+          invalidateLobbyListOnly();
+        } else {
+          invalidateGameQueries();
         }
-        invalidateGameQueries();
         callbacksRef.current?.onGameStateUpdated?.(event);
       });
 

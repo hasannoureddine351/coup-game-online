@@ -198,13 +198,20 @@ class GameService
     public function submitChallenge(GameAction $action, int $challengerId): Challenge
     {
         $game = $action->game;
-        
+
+        $this->syncChallengeRevealPhase($game);
+        // Do not refresh() $game — it clears loaded relations; sync() already persisted turn_phase when needed.
+
+        if (Challenge::query()->where('game_action_id', $action->id)->whereNull('outcome')->exists()) {
+            throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
+        }
+
         if ($game->turn_phase !== 'challenge' && $game->turn_phase !== 'block') {
             throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
         }
 
         $challenger = $game->players()->find($challengerId);
-        if (!$challenger || $challenger->is_eliminated) {
+        if (! $challenger || $challenger->is_eliminated) {
             throw ValidationException::withMessages(['challenge' => 'Invalid challenger']);
         }
 
@@ -213,54 +220,26 @@ class GameService
         }
 
         $challengedPlayer = $action->player;
-        $claimedCharacter = $action->claimed_character;
 
-        if (! $claimedCharacter) {
+        if (! $action->claimed_character) {
             throw ValidationException::withMessages(['challenge' => 'This action has no claim to challenge']);
         }
 
-        $hasCard = $challengedPlayer->cards()
-            ->where('card_type', $claimedCharacter)
-            ->where('is_revealed', false)
-            ->where('is_discarded', false)
-            ->exists();
+        return DB::transaction(function () use ($action, $challenger, $challengedPlayer, $game) {
+            $challenge = Challenge::create([
+                'game_action_id' => $action->id,
+                'challenger_id' => $challenger->id,
+                'challenged_player_id' => $challengedPlayer->id,
+                'outcome' => null,
+                'revealed_card_type' => null,
+                'created_at' => now(),
+            ]);
 
-        $challenge = Challenge::create([
-            'game_action_id' => $action->id,
-            'challenger_id' => $challenger->id,
-            'challenged_player_id' => $challengedPlayer->id,
-            'outcome' => $hasCard ? 'challenged_wins' : 'challenger_wins',
-            'revealed_card_type' => null,
-            'created_at' => now(),
-        ]);
+            $game->turn_phase = 'challenge_reveal';
+            $game->save();
 
-        if ($hasCard) {
-            $card = $challengedPlayer->cards()
-                ->where('card_type', $claimedCharacter)
-                ->where('is_revealed', false)
-                ->where('is_discarded', false)
-                ->first();
-            
-            $card->is_revealed = true;
-            $card->save();
-
-            $challenge->revealed_card_type = $card->card_type;
-            $challenge->save();
-
-            $this->exchangeCard($challengedPlayer, $card, $game);
-            $this->loseInfluence($challenger, $game);
-            
-            $game->turn_phase = 'resolution';
-        } else {
-            $this->loseInfluence($challengedPlayer, $game);
-            $action->status = 'challenged';
-            $action->save();
-            
-            $this->advanceTurn($game);
-        }
-
-        $game->save();
-        return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+            return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+        });
     }
 
     public function submitBlock(GameAction $action, int $blockerId, string $claimedCharacter): Block
@@ -316,6 +295,26 @@ class GameService
         return in_array($claimedCharacter, $blockRules[$actionType] ?? []);
     }
 
+    /**
+     * Align turn_phase when a pending challenge exists but phase was not saved as challenge_reveal (DB constraint / failed save).
+     */
+    public function syncChallengeRevealPhase(Game $game): void
+    {
+        if ($game->status !== 'in_progress') {
+            return;
+        }
+
+        $hasPendingReveal = Challenge::query()
+            ->whereNull('outcome')
+            ->whereHas('gameAction', fn ($q) => $q->where('game_id', $game->id))
+            ->exists();
+
+        if ($hasPendingReveal && $game->turn_phase !== 'challenge_reveal') {
+            $game->turn_phase = 'challenge_reveal';
+            $game->save();
+        }
+    }
+
     public function submitBlockChallenge(Block $block, int $challengerId): Challenge
     {
         $action = $block->gameAction;
@@ -324,13 +323,20 @@ class GameService
         }
 
         $game = $action->game;
-        
+
+        $this->syncChallengeRevealPhase($game);
+        $game->refresh();
+
+        if (Challenge::query()->where('game_action_id', $action->id)->whereNull('outcome')->exists()) {
+            throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
+        }
+
         if ($game->turn_phase !== 'challenge') {
             throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
         }
 
         $challenger = $game->players()->find($challengerId);
-        if (!$challenger || $challenger->is_eliminated) {
+        if (! $challenger || $challenger->is_eliminated) {
             throw ValidationException::withMessages(['challenge' => 'Invalid challenger']);
         }
 
@@ -340,63 +346,149 @@ class GameService
             throw ValidationException::withMessages(['challenge' => 'Cannot challenge your own block']);
         }
 
-        $hasCard = $blocker->cards()
-            ->where('card_type', $block->claimed_character)
-            ->where('is_revealed', false)
-            ->where('is_discarded', false)
-            ->exists();
+        return DB::transaction(function () use ($action, $challenger, $blocker, $block, $game) {
+            $challenge = Challenge::create([
+                'game_action_id' => $action->id,
+                'challenger_id' => $challenger->id,
+                'challenged_player_id' => $blocker->id,
+                'outcome' => null,
+                'revealed_card_type' => null,
+                'created_at' => now(),
+            ]);
 
-        $challenge = Challenge::create([
-            'game_action_id' => $action->id,
-            'challenger_id' => $challenger->id,
-            'challenged_player_id' => $blocker->id,
-            'outcome' => $hasCard ? 'challenged_wins' : 'challenger_wins',
-            'revealed_card_type' => null,
-            'created_at' => now(),
-        ]);
-
-        $block->was_challenged = true;
-
-        if ($hasCard) {
-            $card = $blocker->cards()
-                ->where('card_type', $block->claimed_character)
-                ->where('is_revealed', false)
-                ->where('is_discarded', false)
-                ->first();
-            
-            $card->is_revealed = true;
-            $card->save();
-
-            $challenge->revealed_card_type = $card->card_type;
-            $challenge->save();
-
-            $this->exchangeCard($blocker, $card, $game);
-            $this->loseInfluence($challenger, $game);
-            
-            $block->outcome = 'successful';
+            $block->was_challenged = true;
             $block->save();
-            
-            $action->status = 'blocked';
-            $action->save();
-            
-            $this->advanceTurn($game);
-        } else {
-            $this->loseInfluence($blocker, $game);
-            
-            $block->outcome = 'failed';
-            $block->save();
-            
-            $game->turn_phase = 'resolution';
+
+            $game->turn_phase = 'challenge_reveal';
+            $game->save();
+
+            return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+        });
+    }
+
+    /**
+     * Challenged player chooses which influence to reveal (may bluff by revealing a different card).
+     */
+    public function revealChallengeCard(GameAction $action, GamePlayer $player, int $playerCardId): Challenge
+    {
+        $game = $action->game;
+
+        $this->syncChallengeRevealPhase($game);
+        // Do not refresh() — sync() already updated turn_phase on this $game instance when healing stuck state.
+
+        if ($game->turn_phase !== 'challenge_reveal') {
+            throw ValidationException::withMessages(['reveal' => 'Cannot reveal a card right now.']);
         }
 
-        $game->save();
+        $challenge = Challenge::query()
+            ->where('game_action_id', $action->id)
+            ->whereNull('outcome')
+            ->first();
+
+        if (! $challenge) {
+            throw ValidationException::withMessages(['reveal' => 'No pending challenge to resolve.']);
+        }
+
+        if ((int) $challenge->challenged_player_id !== (int) $player->id) {
+            throw ValidationException::withMessages(['reveal' => 'Only the challenged player may reveal a card.']);
+        }
+
+        $card = $player->cards()
+            ->where('id', $playerCardId)
+            ->where('is_revealed', false)
+            ->where('is_discarded', false)
+            ->first();
+
+        if (! $card) {
+            throw ValidationException::withMessages(['reveal' => 'Invalid card.']);
+        }
+
+        $block = $action->block;
+        $isActionClaimChallenge = (int) $challenge->challenged_player_id === (int) $action->player_id;
+
+        $claimedCharacter = $isActionClaimChallenge
+            ? $action->claimed_character
+            : ($block?->claimed_character);
+
+        if (! $claimedCharacter) {
+            throw ValidationException::withMessages(['reveal' => 'Invalid challenge state.']);
+        }
+
+        $revealedMatchesClaim = (string) $card->card_type === (string) $claimedCharacter;
+
+        $card->is_revealed = true;
+        $card->save();
+
+        $challenge->revealed_card_type = $card->card_type;
+
+        $challenger = $game->players()->find($challenge->challenger_id);
+        if (! $challenger) {
+            throw ValidationException::withMessages(['reveal' => 'Invalid challenger.']);
+        }
+
+        if ($revealedMatchesClaim) {
+            $challenge->outcome = 'challenged_wins';
+            $challenge->save();
+
+            if ($isActionClaimChallenge) {
+                $this->exchangeCard($player, $card, $game);
+                $this->loseInfluence($challenger, $game);
+                $game->turn_phase = 'resolution';
+                $game->save();
+            } else {
+                if (! $block) {
+                    throw ValidationException::withMessages(['reveal' => 'Invalid block state.']);
+                }
+                $this->exchangeCard($player, $card, $game);
+                $this->loseInfluence($challenger, $game);
+                $block->outcome = 'successful';
+                $block->save();
+                $action->status = 'blocked';
+                $action->save();
+                $this->advanceTurn($game);
+            }
+        } else {
+            $challenge->outcome = 'challenger_wins';
+            $challenge->save();
+
+            if ($player->cards()->where('is_revealed', false)->where('is_discarded', false)->count() === 0) {
+                $player->is_eliminated = true;
+                $player->save();
+            }
+            $this->checkWinCondition($game);
+
+            $game->refresh();
+
+            if ($game->status === 'finished') {
+                return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+            }
+
+            if ($isActionClaimChallenge) {
+                $action->status = 'challenged';
+                $action->save();
+                $this->advanceTurn($game);
+            } else {
+                if (! $block) {
+                    throw ValidationException::withMessages(['reveal' => 'Invalid block state.']);
+                }
+                $block->outcome = 'failed';
+                $block->save();
+                $game->turn_phase = 'resolution';
+                $game->save();
+            }
+        }
+
         return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
     }
 
     public function resolveAction(GameAction $action): void
     {
         $game = $action->game;
-        
+
+        if ($game->turn_phase === 'challenge_reveal') {
+            throw ValidationException::withMessages(['action' => 'Resolve the challenge reveal before continuing.']);
+        }
+
         if ($game->turn_phase !== 'resolution') {
             throw ValidationException::withMessages(['action' => 'Not in resolution phase']);
         }
@@ -643,6 +735,12 @@ class GameService
 
     protected function advanceTurn(Game $game): void
     {
+        $game->refresh();
+
+        if ($game->status === 'finished') {
+            return;
+        }
+
         $players = $game->players()
             ->where('is_eliminated', false)
             ->orderBy('seat_number')
@@ -686,7 +784,13 @@ class GameService
                     $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
                 },
                 'actions' => function ($q) {
-                    $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+                    $q->orderBy('id', 'desc')->limit(150)->with([
+                        'player.user',
+                        'targetPlayer.user',
+                        'challenge.challenger.user',
+                        'challenge.challengedPlayer.user',
+                        'block.blocker.user',
+                    ]);
                 },
                 'exchangeTempDeckCards',
             ])
@@ -706,6 +810,10 @@ class GameService
 
     public function passPhase(Game $game, GamePlayer $passingPlayer): void
     {
+        if ($game->turn_phase === 'challenge_reveal') {
+            throw ValidationException::withMessages(['phase' => 'The challenged player must reveal a card first.']);
+        }
+
         if ($game->turn_phase === 'challenge') {
             $pendingAction = GameAction::query()
                 ->where('game_id', $game->id)
@@ -790,6 +898,11 @@ class GameService
 
     public function chooseCardToLose(GamePlayer $player, int $cardId): void
     {
+        $game = $player->game;
+        if ($game && $game->turn_phase === 'challenge_reveal') {
+            throw ValidationException::withMessages(['card' => 'Use the challenge reveal flow to flip a card.']);
+        }
+
         $card = $player->cards()
             ->where('id', $cardId)
             ->where('is_revealed', false)

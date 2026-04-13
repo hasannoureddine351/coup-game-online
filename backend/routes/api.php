@@ -28,6 +28,7 @@ Route::middleware('auth:api')->prefix('games')->group(function () {
     Route::post('/{id}/actions/{actionId}/challenge', [GameController::class, 'submitChallenge']);
     Route::post('/{id}/actions/{actionId}/block', [GameController::class, 'submitBlock']);
     Route::post('/{id}/actions/{actionId}/block-challenge', [GameController::class, 'submitBlockChallenge']);
+    Route::post('/{id}/actions/{actionId}/reveal-challenge', [GameController::class, 'revealChallengeCard']);
     Route::post('/{id}/actions/{actionId}/resolve', [GameController::class, 'resolveAction']);
     Route::post('/{id}/pass', [GameController::class, 'passPhase']);
     Route::post('/{id}/choose-card', [GameController::class, 'chooseCardToLose']);

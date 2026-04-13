@@ -62,6 +62,12 @@ export const gameService = {
     return api.post<Challenge>(ENDPOINTS.games.BLOCK_CHALLENGE(gameId, actionId), {});
   },
 
+  revealChallengeCard(gameId: number, actionId: number, playerCardId: number) {
+    return api.post<Challenge>(ENDPOINTS.games.REVEAL_CHALLENGE(gameId, actionId), {
+      player_card_id: playerCardId,
+    });
+  },
+
   resolveAction(gameId: number, actionId: number) {
     return api.post(ENDPOINTS.games.RESOLVE(gameId, actionId), {});
   },

@@ -10,6 +10,8 @@ import PlayerHand from '../components/game/PlayerHand.tsx';
 import ChallengeBlockPanel from '../components/game/ChallengeBlockPanel.tsx';
 import AmbassadorExchangePanel from '../components/game/AmbassadorExchangePanel.tsx';
 import GameStatus from '../components/game/GameStatus.tsx';
+import ActionLogPanel from '../components/game/ActionLogPanel.tsx';
+import ChallengeRevealPanel from '../components/game/ChallengeRevealPanel.tsx';
 import { toast } from 'sonner';
 import type { Game, GameAction, DeckCard } from '../api/types.ts';
 import { useAuth } from '../contexts/auth-context.tsx';
@@ -98,6 +100,11 @@ export default function GamePage() {
       navigate('/lobby', { replace: true });
       return;
     }
+    /** Server has no current game (e.g. deleted) but client still shows finished — return everyone to lobby. */
+    if (!currentGame && localGame?.status === 'finished') {
+      navigate('/lobby', { replace: true });
+      return;
+    }
     if (!currentGame && localGame?.status !== 'finished') {
       navigate('/lobby', { replace: true });
     }
@@ -147,52 +154,68 @@ export default function GamePage() {
         onContinue={handleDismissGameOver}
         isDeleting={deleteGame.isPending}
       />
-      <div className="max-w-7xl mx-auto space-y-6">
-        {isWaiting && (
-          <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Waiting for game to start...</h2>
-            <p className="text-neutral-400">All players must be ready before the game can begin.</p>
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8">
+          <div className="min-w-0 flex-1 space-y-6">
+            {isWaiting && (
+              <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6 text-center">
+                <h2 className="text-2xl font-bold mb-4">Waiting for game to start...</h2>
+                <p className="text-neutral-400">All players must be ready before the game can begin.</p>
+              </div>
+            )}
 
-        <GameBoard game={localGame} currentUserId={user?.id ?? ''} />
+            <GameBoard game={localGame} currentUserId={user?.id ?? ''} />
 
-        {isInProgress && currentPlayer && (
-          <>
-            {latestAction?.action_type === 'Exchange' &&
-              latestAction.status === 'pending' &&
-              exchangeTempDeck.length === 2 &&
-              Number(currentPlayer.id) === Number(latestAction.player_id) && (
-                <AmbassadorExchangePanel
-                  game={{ ...localGame, exchange_temp_deck_cards: exchangeTempDeck }}
-                  currentPlayer={currentPlayer}
+            {isInProgress && currentPlayer && latestAction && (
+              <ChallengeRevealPanel
+                game={localGame}
+                currentPlayer={currentPlayer}
+                latestAction={latestAction}
+              />
+            )}
+
+            {isInProgress && currentPlayer && (
+              <>
+                {latestAction?.action_type === 'Exchange' &&
+                  latestAction.status === 'pending' &&
+                  exchangeTempDeck.length === 2 &&
+                  Number(currentPlayer.id) === Number(latestAction.player_id) && (
+                    <AmbassadorExchangePanel
+                      game={{ ...localGame, exchange_temp_deck_cards: exchangeTempDeck }}
+                      currentPlayer={currentPlayer}
+                    />
+                  )}
+
+                <PlayerHand player={currentPlayer} />
+
+                {isCurrentTurn && (localGame.turn_phase === 'action' || String(localGame.turn_phase).trim() === 'action') && (
+                  <ActionPanel
+                    game={localGame}
+                    currentPlayer={currentPlayer}
+                  />
+                )}
+
+                {(localGame.turn_phase === 'challenge' || localGame.turn_phase === 'block') && latestAction?.status === 'pending' && (
+                  <ChallengeBlockPanel
+                    game={localGame}
+                    currentPlayer={currentPlayer}
+                    currentAction={latestAction}
+                  />
+                )}
+
+                <GameStatus 
+                  game={localGame}
+                  currentAction={latestAction}
+                  isCurrentPlayerTurn={isCurrentTurn}
                 />
-              )}
-
-            <PlayerHand player={currentPlayer} />
-
-            {isCurrentTurn && (localGame.turn_phase === 'action' || String(localGame.turn_phase).trim() === 'action') && (
-              <ActionPanel
-                game={localGame}
-                currentPlayer={currentPlayer}
-              />
+              </>
             )}
+          </div>
 
-            {(localGame.turn_phase === 'challenge' || localGame.turn_phase === 'block') && latestAction?.status === 'pending' && (
-              <ChallengeBlockPanel
-                game={localGame}
-                currentPlayer={currentPlayer}
-                currentAction={latestAction}
-              />
-            )}
-
-            <GameStatus 
-              game={localGame}
-              currentAction={latestAction}
-              isCurrentPlayerTurn={isCurrentTurn}
-            />
-          </>
-        )}
+          <aside className="w-full shrink-0 xl:w-[min(100%,22rem)] xl:sticky xl:top-4 xl:self-start xl:max-h-none">
+            <ActionLogPanel game={localGame} />
+          </aside>
+        </div>
       </div>
     </div>
   );
