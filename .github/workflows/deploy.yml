@@ -12,19 +12,23 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
+
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # Required if EC2_SSH_KEY was created with a passphrase (ssh-keygen -N "...")
           passphrase: ${{ secrets.EC2_SSH_KEY_PASSPHRASE }}
+
           script: |
+            set -e
+
             echo "🚀 Starting deployment..."
 
             cd ~/coup-game-online
 
-            echo "📥 Pull latest code"
-            git pull origin dev
+            echo "📥 Syncing code with GitHub (FORCED)..."
+            git fetch origin
+            git reset --hard origin/dev
 
             # ======================
             # 🐘 Backend (Laravel)
@@ -38,17 +42,8 @@ jobs:
             php artisan config:clear
             php artisan cache:clear
 
-            echo "🐘 Restarting Laravel server..."
-            # Do not use pkill -f "artisan serve": the SSH bash -c '...' cmdline
-            # contains that substring, so pkill can kill this script (exit 143).
-            if command -v fuser >/dev/null 2>&1; then
-              fuser -k 8000/tcp 2>/dev/null || true
-            elif command -v lsof >/dev/null 2>&1; then
-              PIDS=$(lsof -t -iTCP:8000 -sTCP:LISTEN 2>/dev/null || true)
-              if [ -n "$PIDS" ]; then kill $PIDS 2>/dev/null || true; fi
-            fi
-            sleep 1
-            nohup php artisan serve --host=127.0.0.1 --port=8000 > laravel.log 2>&1 &
+            echo "🔁 Restarting Laravel service..."
+            sudo systemctl restart laravel
 
             # ======================
             # ⚛️ Frontend (React - CRA)
@@ -59,11 +54,11 @@ jobs:
             npm install
             npm run build
 
-            echo "🚀 Deploying frontend to Nginx..."
+            echo "📦 Deploying frontend to Nginx..."
             sudo rm -rf /var/www/html/*
             sudo cp -r build/* /var/www/html/
 
-            echo "🚀 Reloading Nginx..."
+            echo "🔁 Reloading Nginx..."
             sudo systemctl reload nginx
 
             echo "✅ Deployment finished!"
