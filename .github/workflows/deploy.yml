@@ -24,6 +24,9 @@ jobs:
 
             echo "🚀 Starting deployment..."
 
+            # ======================
+            # 📥 Pull latest code
+            # ======================
             cd ~/coup-game-online
 
             echo "📥 Syncing code with GitHub (FORCED)..."
@@ -34,7 +37,8 @@ jobs:
             # 🐘 Backend (Laravel)
             # ======================
             echo "🐘 Updating Laravel backend..."
-            cd backend
+
+            cd ~/coup-game-online/backend
 
             composer install --no-interaction --prefer-dist --optimize-autoloader
 
@@ -50,12 +54,8 @@ jobs:
             # ======================
             echo "⚡ Restarting Reverb..."
 
-            cd backend
+            pkill -f "reverb:start" || true
 
-            # Kill previous Reverb instance (IMPORTANT)
-            pkill -f reverb:start || true
-
-            # Start Reverb in background (NOHUP)
             nohup php artisan reverb:start > reverb.log 2>&1 &
 
             echo "✅ Reverb running in background"
@@ -64,12 +64,14 @@ jobs:
             # ⚛️ Frontend (React - CRA)
             # ======================
             echo "⚛️ Building React frontend..."
-            cd ../frontend
+
+            cd ~/coup-game-online/frontend
 
             npm install
             npm run build
 
             echo "📦 Deploying frontend to Nginx..."
+
             sudo rm -rf /var/www/html/*
             sudo cp -r build/* /var/www/html/
 
