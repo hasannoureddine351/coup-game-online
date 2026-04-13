@@ -25,27 +25,39 @@ export const useGameData = () => {
     });
   };
 
-  const useCurrentGameQuery = (options?: { refetchInterval?: number }) => {
+  const useCurrentGameQuery = (options?: {
+    refetchInterval?: number | false | ((query: { state: { data: unknown } }) => number | false);
+  }) => {
     return useQuery({
       queryKey: gameKeys.currentGame(),
       queryFn: async () => {
         const data = await gameService.currentGame();
         return data;
       },
-      refetchInterval: options?.refetchInterval,
+      /** Default: no polling — WebSocket + mutations invalidate this query. Pass refetchInterval (e.g. 2000) for lobby/waiting screens. */
+      refetchInterval:
+        options?.refetchInterval !== undefined ? options.refetchInterval : false,
     });
   };
 
   const createGame = useMutation({
     mutationFn: () => gameService.create(),
-    onSuccess: () => {
+    onSuccess: (game) => {
+      queryClient.setQueryData<CurrentGame | null>(gameKeys.currentGame(), {
+        ...game,
+        host: true,
+      } as CurrentGame);
       queryClient.invalidateQueries({ queryKey: gameKeys.all });
     },
   });
 
   const joinGame = useMutation({
     mutationFn: (gameId: number) => gameService.join(gameId),
-    onSuccess: () => {
+    onSuccess: (game) => {
+      queryClient.setQueryData<CurrentGame | null>(gameKeys.currentGame(), {
+        ...(game as CurrentGame),
+        host: false,
+      } as CurrentGame);
       queryClient.invalidateQueries({ queryKey: gameKeys.all });
     },
   });
@@ -66,7 +78,13 @@ export const useGameData = () => {
 
   const toggleReady = useMutation({
     mutationFn: (gameId: number) => gameService.toggleReady(gameId),
-    onSuccess: () => {
+    onSuccess: (game) => {
+      queryClient.setQueryData<CurrentGame | null>(gameKeys.currentGame(), (prev) => {
+        if (prev && prev.id === game.id) {
+          return { ...game, host: prev.host } as CurrentGame;
+        }
+        return game as CurrentGame;
+      });
       queryClient.invalidateQueries({ queryKey: gameKeys.all });
     },
   });
@@ -105,6 +123,21 @@ export const useGameData = () => {
   const submitBlockChallenge = useMutation({
     mutationFn: ({ gameId, actionId }: { gameId: number; actionId: number }) =>
       gameService.submitBlockChallenge(gameId, actionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.all });
+    },
+  });
+
+  const revealChallengeCard = useMutation({
+    mutationFn: ({
+      gameId,
+      actionId,
+      playerCardId,
+    }: {
+      gameId: number;
+      actionId: number;
+      playerCardId: number;
+    }) => gameService.revealChallengeCard(gameId, actionId, playerCardId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: gameKeys.all });
     },
@@ -161,6 +194,7 @@ export const useGameData = () => {
     submitChallenge,
     submitBlock,
     submitBlockChallenge,
+    revealChallengeCard,
     resolveAction,
     passPhase,
     chooseCardToLose,

@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useGameWebSocket } from '../hooks/useGameWebSocket.ts';
-import { useGameData } from '../hooks/useGameData.ts';
+import { useGameData, gameKeys } from '../hooks/useGameData.ts';
 import GameBoard from '../components/game/GameBoard.tsx';
+import GameOverModal from '../components/game/GameOverModal.tsx';
 import ActionPanel from '../components/game/ActionPanel.tsx';
 import PlayerHand from '../components/game/PlayerHand.tsx';
 import ChallengeBlockPanel from '../components/game/ChallengeBlockPanel.tsx';
 import AmbassadorExchangePanel from '../components/game/AmbassadorExchangePanel.tsx';
 import GameStatus from '../components/game/GameStatus.tsx';
+import ActionLogPanel from '../components/game/ActionLogPanel.tsx';
+import ChallengeRevealPanel from '../components/game/ChallengeRevealPanel.tsx';
 import { toast } from 'sonner';
-import type { Game, GamePlayer, GameAction, DeckCard } from '../api/types.ts';
+import type { Game, GameAction, DeckCard } from '../api/types.ts';
 import { useAuth } from '../contexts/auth-context.tsx';
 
 /** Laravel may expose relation as snake_case or camelCase on WebSocket payloads. */
@@ -20,9 +24,10 @@ function getExchangeTempDeckCards(game: Game): DeckCard[] {
 
 export default function GamePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, token } = useAuth();
-  const { useCurrentGameQuery } = useGameData();
-  const { data: currentGame, isLoading } = useCurrentGameQuery({ refetchInterval: 2000 });
+  const { useCurrentGameQuery, deleteGame } = useGameData();
+  const { data: currentGame, isLoading } = useCurrentGameQuery();
   
   const [localGame, setLocalGame] = useState(null as Game | null);
   const [latestAction, setLatestAction] = useState(null as GameAction | null);
@@ -36,6 +41,13 @@ export default function GamePage() {
       }
     }
   }, [currentGame]);
+
+  /** If the query cache updates to finished before local state (e.g. WebSocket + refetch ordering), keep them aligned. */
+  useEffect(() => {
+    if (currentGame?.status === 'finished' && currentGame.id && localGame?.id === currentGame.id && localGame.status !== 'finished') {
+      setLocalGame(currentGame as Game);
+    }
+  }, [currentGame, localGame?.id, localGame?.status]);
 
   const syncLatestAction = (game: Game | null) => {
     if (game?.actions && game.actions.length > 0) {
@@ -73,7 +85,7 @@ export default function GamePage() {
       // Same: wait for GameStateUpdated; avoid stale localGame.
     },
     onGameStateUpdated: (event) => {
-      if (event.message) {
+      if (event.message && event.game?.status !== 'finished') {
         toast.info(event.message);
       }
       setLocalGame(event.game);
@@ -82,10 +94,21 @@ export default function GamePage() {
   });
 
   useEffect(() => {
-    if (!isLoading && !currentGame) {
-      navigate('/lobby');
+    if (isLoading) return;
+    // Stay on this screen while we still have a finished game in local state (e.g. opponent already deleted it).
+    if (!currentGame && !localGame) {
+      navigate('/lobby', { replace: true });
+      return;
     }
-  }, [currentGame, isLoading, navigate]);
+    /** Server has no current game (e.g. deleted) but client still shows finished — return everyone to lobby. */
+    if (!currentGame && localGame?.status === 'finished') {
+      navigate('/lobby', { replace: true });
+      return;
+    }
+    if (!currentGame && localGame?.status !== 'finished') {
+      navigate('/lobby', { replace: true });
+    }
+  }, [currentGame, isLoading, localGame, navigate]);
 
   if (isLoading || !localGame) {
     return (
@@ -101,64 +124,98 @@ export default function GamePage() {
   const isWaiting = localGame.status === 'waiting';
   const isInProgress = localGame.status === 'in_progress';
   const isFinished = localGame.status === 'finished';
+  const winnerPlayer = localGame.players?.find((p) => !p.is_eliminated);
+  const winnerName = winnerPlayer?.user?.username ?? 'Unknown';
+  const isCurrentUserWinner =
+    !!winnerPlayer &&
+    !!user &&
+    String(winnerPlayer.user_id) === String(user.id);
+
+  const handleDismissGameOver = () => {
+    if (!localGame?.id) {
+      navigate('/lobby', { replace: true });
+      return;
+    }
+    deleteGame.mutate(localGame.id, {
+      onSuccess: () => navigate('/lobby', { replace: true }),
+      onError: () => {
+        queryClient.invalidateQueries({ queryKey: gameKeys.all });
+        navigate('/lobby', { replace: true });
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {isWaiting && (
-          <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Waiting for game to start...</h2>
-            <p className="text-neutral-400">All players must be ready before the game can begin.</p>
-          </div>
-        )}
+      <GameOverModal
+        open={isFinished}
+        winnerName={winnerName}
+        isCurrentUserWinner={isCurrentUserWinner}
+        onContinue={handleDismissGameOver}
+        isDeleting={deleteGame.isPending}
+      />
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8">
+          <div className="min-w-0 flex-1 space-y-6">
+            {isWaiting && (
+              <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6 text-center">
+                <h2 className="text-2xl font-bold mb-4">Waiting for game to start...</h2>
+                <p className="text-neutral-400">All players must be ready before the game can begin.</p>
+              </div>
+            )}
 
-        {isFinished && (
-          <div className="bg-emerald-900/30 border border-emerald-600 rounded-lg p-6 text-center">
-            <h2 className="text-2xl font-bold mb-2">Game Over!</h2>
-            <p className="text-neutral-300">
-              Winner: {localGame.players?.find(p => !p.is_eliminated)?.user?.username ?? 'Unknown'}
-            </p>
-          </div>
-        )}
+            <GameBoard game={localGame} currentUserId={user?.id ?? ''} />
 
-        <GameBoard game={localGame} currentUserId={user?.id ?? ''} />
+            {isInProgress && currentPlayer && latestAction && (
+              <ChallengeRevealPanel
+                game={localGame}
+                currentPlayer={currentPlayer}
+                latestAction={latestAction}
+              />
+            )}
 
-        {isInProgress && currentPlayer && (
-          <>
-            {latestAction?.action_type === 'Exchange' &&
-              latestAction.status === 'pending' &&
-              exchangeTempDeck.length === 2 &&
-              Number(currentPlayer.id) === Number(latestAction.player_id) && (
-                <AmbassadorExchangePanel
-                  game={{ ...localGame, exchange_temp_deck_cards: exchangeTempDeck }}
-                  currentPlayer={currentPlayer}
+            {isInProgress && currentPlayer && (
+              <>
+                {latestAction?.action_type === 'Exchange' &&
+                  latestAction.status === 'pending' &&
+                  exchangeTempDeck.length === 2 &&
+                  Number(currentPlayer.id) === Number(latestAction.player_id) && (
+                    <AmbassadorExchangePanel
+                      game={{ ...localGame, exchange_temp_deck_cards: exchangeTempDeck }}
+                      currentPlayer={currentPlayer}
+                    />
+                  )}
+
+                <PlayerHand player={currentPlayer} />
+
+                {isCurrentTurn && (localGame.turn_phase === 'action' || String(localGame.turn_phase).trim() === 'action') && (
+                  <ActionPanel
+                    game={localGame}
+                    currentPlayer={currentPlayer}
+                  />
+                )}
+
+                {(localGame.turn_phase === 'challenge' || localGame.turn_phase === 'block') && latestAction?.status === 'pending' && (
+                  <ChallengeBlockPanel
+                    game={localGame}
+                    currentPlayer={currentPlayer}
+                    currentAction={latestAction}
+                  />
+                )}
+
+                <GameStatus 
+                  game={localGame}
+                  currentAction={latestAction}
+                  isCurrentPlayerTurn={isCurrentTurn}
                 />
-              )}
-
-            <PlayerHand player={currentPlayer} />
-
-            {isCurrentTurn && (localGame.turn_phase === 'action' || String(localGame.turn_phase).trim() === 'action') && (
-              <ActionPanel
-                game={localGame}
-                currentPlayer={currentPlayer}
-              />
+              </>
             )}
+          </div>
 
-            {(localGame.turn_phase === 'challenge' || localGame.turn_phase === 'block') && latestAction?.status === 'pending' && (
-              <ChallengeBlockPanel
-                game={localGame}
-                currentPlayer={currentPlayer}
-                currentAction={latestAction}
-              />
-            )}
-
-            <GameStatus 
-              game={localGame}
-              currentAction={latestAction}
-              isCurrentPlayerTurn={isCurrentTurn}
-            />
-          </>
-        )}
+          <aside className="w-full shrink-0 xl:w-[min(100%,22rem)] xl:sticky xl:top-4 xl:self-start xl:max-h-none">
+            <ActionLogPanel game={localGame} />
+          </aside>
+        </div>
       </div>
     </div>
   );

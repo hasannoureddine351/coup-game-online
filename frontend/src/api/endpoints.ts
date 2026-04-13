@@ -21,6 +21,7 @@ export const ENDPOINTS = {
     CHALLENGE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/challenge`,
     BLOCK: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/block`,
     BLOCK_CHALLENGE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/block-challenge`,
+    REVEAL_CHALLENGE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/reveal-challenge`,
     RESOLVE: (gameId: number, actionId: number) => `/games/${gameId}/actions/${actionId}/resolve`,
     PASS: (id: number) => `/games/${id}/pass`,
     CHOOSE_CARD: (id: number) => `/games/${id}/choose-card`,

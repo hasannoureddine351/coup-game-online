@@ -9,7 +9,7 @@ import { useGameWebSocket } from "../hooks/useGameWebSocket.ts";
 export default function LobbyRoomPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { useCurrentGameQuery, leaveGame, deleteGame, toggleReady, startGame } = useGameData();
 
   const gameId = id != null ? parseInt(id, 10) : NaN;
@@ -27,17 +27,16 @@ export default function LobbyRoomPage() {
 
   useEffect(() => {
     if (Number.isNaN(gameId)) {
-      console.log("gameId is NaN");
       navigate("/lobby", { replace: true });
       return;
     }
     if (isFetched && !isLoading && (!currentGame?.id || currentGame.id !== gameId)) {
-      console.log("currentGame is null or currentGame.id !== gameId");
-      console.log("currentGame", currentGame);
-      console.log("gameId", gameId);
       navigate("/lobby", { replace: true });
+      return;
     }
-    if (currentGame?.status === 'in_progress') {
+    // Only treat in_progress as "go to game" for THIS lobby. Otherwise stale cache
+    // from another match can navigate to /game while the URL is /lobby/:newId.
+    if (currentGame?.id === gameId && currentGame.status === "in_progress") {
       navigate("/game", { replace: true });
     }
   }, [gameId, isLoading, isFetched, currentGame, navigate]);
@@ -67,6 +66,10 @@ export default function LobbyRoomPage() {
   }
 
   const playerCount = currentGame?.players?.length ?? 0;
+  const myPlayer = currentGame?.players?.find(
+    (p) => String(p.user_id) === String(user?.id)
+  );
+  const iAmReady = myPlayer?.is_ready ?? false;
 
   return (
     <div className="min-h-screen flex flex-col bg-coup-darker">
@@ -143,14 +146,14 @@ export default function LobbyRoomPage() {
                     onClick={handleToggleReady}
                     disabled={toggleReady.isPending || currentGame.status !== 'waiting'}
                     className={`px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-                      currentGame.players?.find(p => p.user_id === currentGame.created_by_id)?.is_ready
+                      iAmReady
                         ? 'bg-neutral-700 hover:bg-neutral-600'
                         : 'bg-emerald-600 hover:bg-emerald-700'
                     }`}
                   >
                     {toggleReady.isPending
                       ? "Updating..."
-                      : currentGame.players?.find(p => p.user_id === currentGame.created_by_id)?.is_ready
+                      : iAmReady
                       ? "Not Ready"
                       : "Ready"}
                   </button>

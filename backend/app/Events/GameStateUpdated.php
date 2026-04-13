@@ -33,7 +33,13 @@ class GameStateUpdated implements ShouldBroadcast
                     $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
                 },
                 'actions' => function ($q) {
-                    $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+                    $q->orderBy('id', 'desc')->limit(150)->with([
+                        'player.user',
+                        'targetPlayer.user',
+                        'challenge.challenger.user',
+                        'challenge.challengedPlayer.user',
+                        'block.blocker.user',
+                    ]);
                 },
                 'exchangeTempDeckCards',
             ]),

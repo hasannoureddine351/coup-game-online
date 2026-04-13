@@ -64,7 +64,14 @@ export interface Game {
   status: "waiting" | "in_progress" | "finished" | "cancelled";
   max_players: number;
   current_turn_player_id: number | null;
-  turn_phase: string | null;
+  turn_phase:
+    | "action"
+    | "challenge"
+    | "block"
+    | "resolution"
+    | "challenge_reveal"
+    | string
+    | null;
   finished_at: string | null;
   created_at: string;
   updated_at: string;
@@ -104,7 +111,7 @@ export interface Challenge {
   game_action_id: number;
   challenger_id: number;
   challenged_player_id: number;
-  outcome: 'challenger_wins' | 'challenged_wins';
+  outcome: 'challenger_wins' | 'challenged_wins' | null;
   revealed_card_type: CharacterType | null;
   created_at: string;
   challenger?: GamePlayer;
