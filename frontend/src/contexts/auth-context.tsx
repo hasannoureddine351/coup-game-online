@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import { usePersistentStorage } from "../hooks/usePersistentStorage.ts";
 import { getItem, setItem, removeItem } from "../utils/persistentStorage.ts";
@@ -34,7 +34,8 @@ interface AuthContextType {
 const AuthContext = createContext(undefined as AuthContextType | undefined);
 
 export const AuthProvider = ({ children }: { children?: unknown }) => {
-  const storage = usePersistentStorage();
+  const { setItem: persistSetItem, removeItem: persistRemoveItem } =
+    usePersistentStorage();
   const [currentUser, setCurrentUser] = useState(null as User | null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
         const user = data?.user;
         if (token) {
           setItem(StorageKey.ACCESS_TOKEN, token);
-          storage.setItem(StorageKey.ACCESS_TOKEN, token);
+          persistSetItem(StorageKey.ACCESS_TOKEN, token);
         }
         if (user) setCurrentUser(user);
         setIsLoggedIn(true);
@@ -75,7 +76,7 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
         throw err;
       }
     },
-    [storage]
+    [persistSetItem]
   );
 
   const signup = useCallback(
@@ -87,7 +88,7 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
         const user = data?.user;
         if (token) {
           setItem(StorageKey.ACCESS_TOKEN, token);
-          storage.setItem(StorageKey.ACCESS_TOKEN, token);
+          persistSetItem(StorageKey.ACCESS_TOKEN, token);
         }
         if (user) setCurrentUser(user);
         setIsLoggedIn(true);
@@ -99,7 +100,7 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
         throw err;
       }
     },
-    [storage]
+    [persistSetItem]
   );
 
   const refreshToken = useCallback(async () => {
@@ -111,25 +112,60 @@ export const AuthProvider = ({ children }: { children?: unknown }) => {
       const newToken = data?.access_token ?? data?.token;
       if (newToken) {
         setItem(StorageKey.ACCESS_TOKEN, newToken);
-        storage.setItem(StorageKey.ACCESS_TOKEN, newToken);
+        persistSetItem(StorageKey.ACCESS_TOKEN, newToken);
       }
     } catch (err) {
       console.error("Error refreshing token:", err);
     } finally {
       setIsRefreshing(false);
     }
-  }, [storage]);
+  }, [persistSetItem]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const bootstrap = async () => {
+      const t = getItem(StorageKey.ACCESS_TOKEN);
+      if (!t) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        if (isTokenExpired()) {
+          await refreshToken();
+        }
+        if (cancelled) return;
+        if (isTokenExpired()) {
+          setIsLoading(false);
+          return;
+        }
+        const u = await authService.getCurrentUser();
+        if (!cancelled && u) {
+          setCurrentUser(u);
+          setIsLoggedIn(true);
+          setIsAuthenticated(true);
+        }
+      } catch {
+        // 401 is handled by api client (redirect to login)
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [isTokenExpired, refreshToken]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
     setIsAuthenticated(false);
     setIsLoggedIn(false);
     removeItem(StorageKey.ACCESS_TOKEN);
-    storage.removeItem(StorageKey.ACCESS_TOKEN);
+    persistRemoveItem(StorageKey.ACCESS_TOKEN);
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }
-  }, [storage]);
+  }, [persistRemoveItem]);
 
   const value: AuthContextType = {
     user: currentUser,

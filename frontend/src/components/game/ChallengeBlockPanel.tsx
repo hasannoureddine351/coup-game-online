@@ -30,13 +30,28 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
     existingBlock && Number(currentPlayer.id) === Number(existingBlock.blocker_id)
   );
 
+  const isTargetPlayer =
+    currentAction.target_player_id != null &&
+    Number(currentPlayer.id) === Number(currentAction.target_player_id);
+
+  /** Block phase (no block yet): who may pass or declare a block — FA: any non-actor; Assassinate/Steal: target only. */
+  const mayActInOpenBlockPhase =
+    game.turn_phase === 'block' &&
+    !existingBlock &&
+    (currentAction.action_type === 'Foreign_Aid'
+      ? !isActionTaker
+      : currentAction.action_type === 'Assassinate' || currentAction.action_type === 'Steal'
+        ? isTargetPlayer
+        : false);
+
   /** Challenge phase while a block is on the table and nobody has challenged the block yet. */
   const isBlockBeingChallengedPhase =
     game.turn_phase === 'challenge' && !!existingBlock && !existingBlock.was_challenged;
 
   const isChallengeable =
     Boolean(currentAction.claimed_character) && game.turn_phase === 'challenge' && !existingBlock;
-  const isBlockable = Boolean(BLOCKABLE_CHARACTERS[currentAction.action_type]) && game.turn_phase === 'block';
+  const canDeclareBlock =
+    Boolean(BLOCKABLE_CHARACTERS[currentAction.action_type]) && game.turn_phase === 'block' && mayActInOpenBlockPhase;
   const showChallengeBlockButton = isBlockBeingChallengedPhase && !isBlocker;
 
   const blockerName = existingBlock?.blocker?.user?.username ?? 'Blocker';
@@ -93,11 +108,12 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
   const handlePass = () => {
     passPhase.mutate(game.id, {
       onSuccess: () => toast.info('Passed'),
-      onError: (error: any) => toast.error('Failed to pass'),
+      onError: (error: any) =>
+        toast.error(error.response?.data?.errors?.phase?.[0] || error.response?.data?.message || 'Failed to pass'),
     });
   };
 
-  // Block phase, no block yet: only non–action-takers can block; taker waits.
+  // Block phase, no block yet: acting player waits (everyone else may block/pass on FA; only target on assassinate/steal).
   if (isActionTaker && game.turn_phase === 'block' && !existingBlock) {
     return (
       <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-6">
@@ -105,9 +121,31 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
           <AlertTriangle className="w-5 h-5 text-blue-400" />
           <h3 className="font-bold text-lg">Your Action Pending</h3>
         </div>
-        <p className="text-neutral-300">Waiting for other players to challenge or block…</p>
+        <p className="text-neutral-300">
+          {currentAction.action_type === 'Foreign_Aid'
+            ? 'Waiting for other players to block (Duke) or pass…'
+            : 'Waiting for the target to block or pass…'}
+        </p>
         <p className="text-sm text-neutral-400 mt-2">
           Phase: <span className="capitalize text-blue-400">{game.turn_phase}</span>
+        </p>
+      </div>
+    );
+  }
+
+  // Assassinate / Steal block phase: only the target interacts; others wait.
+  if (
+    game.turn_phase === 'block' &&
+    !existingBlock &&
+    (currentAction.action_type === 'Assassinate' || currentAction.action_type === 'Steal') &&
+    !isTargetPlayer
+  ) {
+    return (
+      <div className="bg-slate-900/40 border border-slate-600 rounded-lg p-6">
+        <h3 className="font-bold text-lg mb-2 text-slate-200">Block phase</h3>
+        <p className="text-neutral-400 text-sm">
+          Only <span className="text-light font-medium">{currentAction.targetPlayer?.user?.username}</span> may block
+          or pass for this action.
         </p>
       </div>
     );
@@ -134,7 +172,7 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
     );
   }
 
-  // Blocker cannot challenge their own block; they wait (or pass) while others decide.
+  // Blocker: others must challenge or pass — blocker does not pass here.
   if (isBlocker && isBlockBeingChallengedPhase) {
     return (
       <div className="bg-violet-900/20 border border-violet-600 rounded-lg p-6">
@@ -142,27 +180,27 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
           <Shield className="w-5 h-5 text-violet-400" />
           <h3 className="font-bold text-lg">You blocked this action</h3>
         </div>
-        <p className="text-neutral-300 text-sm mb-4">
+        <p className="text-neutral-300 text-sm">
           You claimed <span className="font-semibold text-violet-200">{existingBlock?.claimed_character}</span>.
-          Other players may challenge whether you have that card, or pass to accept the block.
+          Other players may challenge your claim, or pass to let your block stand.
         </p>
-        <button
-          onClick={handlePass}
-          disabled={passPhase.isPending}
-          className="w-full bg-emerald-700/80 hover:bg-emerald-600 disabled:bg-neutral-800 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-        >
-          <X className="w-4 h-4" />
-          Pass
-        </button>
       </div>
     );
   }
 
   const passHintBlock = isBlockBeingChallengedPhase
     ? "Pass if you don't want to challenge the blocker's claim (the block will stand)."
-    : game.turn_phase === 'block'
-      ? "Don't have Duke or don't want to block? Pass to let the action succeed."
-      : "Don't want to challenge? Pass to continue.";
+    : game.turn_phase === 'block' && currentAction.action_type === 'Foreign_Aid'
+      ? 'Block with Duke if you have it, or pass to allow Foreign Aid (+2 coins).'
+      : game.turn_phase === 'block' && currentAction.action_type === 'Assassinate'
+        ? 'As the target: block with Contessa, or pass to allow the assassination.'
+        : game.turn_phase === 'block' && currentAction.action_type === 'Steal'
+          ? 'As the target: block with Captain or Ambassador, or pass to allow the steal.'
+          : "Don't want to challenge? Pass to continue.";
+
+  const showPass =
+    (game.turn_phase === 'challenge' && !isBlocker) ||
+    (game.turn_phase === 'block' && mayActInOpenBlockPhase);
 
   return (
     <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6">
@@ -192,7 +230,7 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
       )}
 
       <div className="space-y-3">
-        {isChallengeable && (
+        {isChallengeable && !isActionTaker && (
           <div className="space-y-2">
             <button
               onClick={handleChallenge}
@@ -224,9 +262,9 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
           </div>
         )}
 
-        {isBlockable && !existingBlock && (
+        {canDeclareBlock && (
           <div className="space-y-3">
-            <p className="font-bold">Block this action:</p>
+            <p className="font-bold">Block this action (claim a character):</p>
             <div className="grid grid-cols-1 gap-2">
               {BLOCKABLE_CHARACTERS[currentAction.action_type]?.map((character) => (
                 <button
@@ -255,18 +293,25 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
           </div>
         )}
 
-        <div className="pt-2 border-t border-neutral-600">
-          <p className="text-sm text-neutral-400 mb-2">{passHintBlock}</p>
-          <button
-            type="button"
-            onClick={handlePass}
-            disabled={passPhase.isPending}
-            className="w-full bg-emerald-700/80 hover:bg-emerald-600 disabled:bg-neutral-800 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <X className="w-4 h-4" />
-            Pass (Don&apos;t {game.turn_phase === 'challenge' ? 'Challenge' : 'Block'})
-          </button>
-        </div>
+        {showPass && (
+          <div className="pt-2 border-t border-neutral-600">
+            <p className="text-sm text-neutral-400 mb-2">{passHintBlock}</p>
+            <button
+              type="button"
+              onClick={handlePass}
+              disabled={passPhase.isPending}
+              className="w-full bg-emerald-700/80 hover:bg-emerald-600 disabled:bg-neutral-800 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Pass
+              {game.turn_phase === 'challenge' && !isBlockBeingChallengedPhase
+                ? ' (no challenge)'
+                : game.turn_phase === 'block'
+                  ? ' (decline block)'
+                  : ''}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -29,7 +29,10 @@ export default function LobbyListPage() {
 
   const handleJoinGame = (gameId: number) =>
     joinGame.mutate(gameId, {
-      onSuccess: (game) => navigate(`/lobby/${game.id}`, { replace: true }),
+      onSuccess: (game) => {
+        const id = game != null && typeof game.id === "number" ? game.id : gameId;
+        navigate(`/lobby/${id}`, { replace: true });
+      },
     });
 
   const handleLeaveGame = (gameId: number) =>
@@ -136,16 +139,29 @@ export default function LobbyListPage() {
                   >
                     <p className="text-light/90 font-medium mb-1">
                       Your current game #{g.id}
-                      {g.status === "in_progress" ? " (in progress)" : ""}
+                      {g.status === "in_progress"
+                        ? " (in progress)"
+                        : g.status === "finished"
+                          ? " (ended)"
+                          : ""}
                     </p>
                     <p className="text-light/60 text-sm mb-3">
                       {playerCount(g)} / {g.max_players} players
                     </p>
                     <button
-                      onClick={() => navigate(g.status === "in_progress" ? "/game" : `/lobby/${g.id}`, { replace: true })}
+                      onClick={() =>
+                        navigate(
+                          g.status === "in_progress" || g.status === "finished"
+                            ? "/game"
+                            : `/lobby/${g.id}`,
+                          { replace: true }
+                        )
+                      }
                       className="btn-primary px-4 py-2 text-sm"
                     >
-                      {g.status === "in_progress" ? "Enter game" : "Enter lobby"}
+                      {g.status === "in_progress" || g.status === "finished"
+                        ? "Enter game"
+                        : "Enter lobby"}
                     </button>
                   </motion.div>
                 );

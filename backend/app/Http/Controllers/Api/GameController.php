@@ -145,7 +145,7 @@ class GameController extends Controller
             ->whereHas('players', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
-            ->whereIn('status', ['waiting', 'in_progress'])
+            ->whereIn('status', ['waiting', 'in_progress', 'finished'])
             ->latest()
             ->first();
 
@@ -174,6 +174,15 @@ class GameController extends Controller
 
         if (! $game) {
             return response()->json(['message' => 'Game not found.'], 404);
+        }
+
+        if ($game->status === 'finished') {
+            if (! $game->players()->where('user_id', $user->id)->exists()) {
+                return response()->json(['message' => 'You are not in this game.'], 422);
+            }
+            $game->delete();
+
+            return response()->json(['message' => 'Game removed.']);
         }
 
         if ($game->status !== 'waiting') {
@@ -423,8 +432,13 @@ class GameController extends Controller
             return response()->json(['message' => 'Game not found.'], 404);
         }
 
+        $player = $game->players()->where('user_id', $user->id)->first();
+        if (! $player) {
+            return response()->json(['message' => 'You are not in this game.'], 422);
+        }
+
         try {
-            $gameService->passPhase($game);
+            $gameService->passPhase($game, $player);
             event(new GameStateUpdated($game->fresh(['players.user', 'players.cards']), 'Phase passed'));
             return response()->json(['message' => 'Phase passed successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {

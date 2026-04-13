@@ -9,6 +9,7 @@ use App\Models\PlayerCard;
 use App\Models\GameAction;
 use App\Models\Challenge;
 use App\Models\Block;
+use App\Events\GameStateUpdated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -281,6 +282,12 @@ class GameService
 
         if (!$this->canBlockAction($action->action_type, $claimedCharacter)) {
             throw ValidationException::withMessages(['block' => 'This character cannot block this action']);
+        }
+
+        if (in_array($action->action_type, [self::ACTION_ASSASSINATE, self::ACTION_STEAL], true)) {
+            if (! $action->target_player_id || (int) $blocker->id !== (int) $action->target_player_id) {
+                throw ValidationException::withMessages(['block' => 'Only the target player can block this action.']);
+            }
         }
 
         $block = Block::create([
@@ -671,28 +678,113 @@ class GameService
         $game->status = 'finished';
         $game->finished_at = now();
         $game->save();
+
+        $fresh = Game::query()
+            ->with([
+                'players.user',
+                'players.cards' => function ($q) {
+                    $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
+                },
+                'actions' => function ($q) {
+                    $q->orderBy('id', 'desc')->limit(1)->with(['player.user', 'targetPlayer.user', 'block.blocker.user']);
+                },
+                'exchangeTempDeckCards',
+            ])
+            ->find($game->id);
+
+        if (! $fresh) {
+            return;
+        }
+
+        $winner = $fresh->players->firstWhere('is_eliminated', false);
+        $message = $winner && $winner->user
+            ? $winner->user->username.' wins!'
+            : 'Game over';
+
+        event(new GameStateUpdated($fresh, $message));
     }
 
-    public function passPhase(Game $game): void
+    public function passPhase(Game $game, GamePlayer $passingPlayer): void
     {
         if ($game->turn_phase === 'challenge') {
-            // After a block: "challenge" means challenge the blocker's claim — pass accepts the block → resolution.
-            // Before any block (e.g. Tax): pass moves to block phase for blockable actions.
-            $pendingUnchallengedBlock = GameAction::query()
+            $pendingAction = GameAction::query()
                 ->where('game_id', $game->id)
                 ->where('status', 'pending')
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $pendingAction) {
+                throw ValidationException::withMessages(['action' => 'No pending action.']);
+            }
+
+            // After a block: pass accepts the block — mark action blocked, then resolve.
+            $pendingUnchallengedBlock = GameAction::query()
+                ->where('id', $pendingAction->id)
                 ->whereHas('block', fn ($q) => $q->where('was_challenged', false))
                 ->exists();
 
-            $game->turn_phase = $pendingUnchallengedBlock ? 'resolution' : 'block';
+            if ($pendingUnchallengedBlock) {
+                $pendingAction->status = 'blocked';
+                $pendingAction->save();
+                $game->turn_phase = 'resolution';
+                $game->save();
+
+                return;
+            }
+
+            // Before any block: move to block only for actions that can be blocked (FA / assassinate / steal).
+            $game->turn_phase = $this->actionHasBlockPhase($pendingAction->action_type) ? 'block' : 'resolution';
             $game->save();
 
             return;
         }
 
         if ($game->turn_phase === 'block') {
+            $pendingAction = GameAction::query()
+                ->where('game_id', $game->id)
+                ->where('status', 'pending')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($pendingAction) {
+                $this->assertPassingPlayerMayActInBlockPhase($pendingAction, $passingPlayer);
+            }
+
             $game->turn_phase = 'resolution';
             $game->save();
+        }
+    }
+
+    /**
+     * Actions that use a dedicated block phase (after any character-claim challenges).
+     */
+    protected function actionHasBlockPhase(string $actionType): bool
+    {
+        return in_array($actionType, [
+            self::ACTION_FOREIGN_AID,
+            self::ACTION_ASSASSINATE,
+            self::ACTION_STEAL,
+        ], true);
+    }
+
+    /**
+     * Who may pass during block phase: Foreign Aid — any player except the actor;
+     * Assassinate / Steal — only the target (they block or pass to let it through).
+     */
+    protected function assertPassingPlayerMayActInBlockPhase(GameAction $action, GamePlayer $passingPlayer): void
+    {
+        if ($action->action_type === self::ACTION_FOREIGN_AID) {
+            if ((int) $passingPlayer->id === (int) $action->player_id) {
+                throw ValidationException::withMessages(['phase' => 'The acting player does not use the block phase.']);
+            }
+
+            return;
+        }
+
+        if (in_array($action->action_type, [self::ACTION_ASSASSINATE, self::ACTION_STEAL], true)) {
+            if (! $action->target_player_id || (int) $passingPlayer->id !== (int) $action->target_player_id) {
+                throw ValidationException::withMessages(['phase' => 'Only the target player may pass or block during this phase.']);
+            }
         }
     }
 

@@ -6,7 +6,7 @@ import { StorageKey } from "../../hooks/storage-data/index.ts";
 
 export default function PrivateRoute() {
   const navigate = useNavigate();
-  const { isTokenExpired, refreshToken } = useAuth();
+  const { isTokenExpired, refreshToken, isLoading: authBootstrapping } = useAuth();
   const [isValidating, setIsValidating] = useState(true);
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -60,6 +60,15 @@ export default function PrivateRoute() {
   }
 
   if (isValidating || !authCheckComplete) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-t-transparent border-current" />
+      </div>
+    );
+  }
+
+  const tokenAfterCheck = getItem(StorageKey.ACCESS_TOKEN);
+  if (tokenAfterCheck && authBootstrapping) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-12 w-12 animate-spin rounded-full border-2 border-t-transparent border-current" />
