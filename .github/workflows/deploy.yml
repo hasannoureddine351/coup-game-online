@@ -46,6 +46,21 @@ jobs:
             sudo systemctl restart laravel
 
             # ======================
+            # ⚡ Reverb (WebSockets)
+            # ======================
+            echo "⚡ Restarting Reverb..."
+
+            cd backend
+
+            # Kill previous Reverb instance (IMPORTANT)
+            pkill -f reverb:start || true
+
+            # Start Reverb in background (NOHUP)
+            nohup php artisan reverb:start > reverb.log 2>&1 &
+
+            echo "✅ Reverb running in background"
+
+            # ======================
             # ⚛️ Frontend (React - CRA)
             # ======================
             echo "⚛️ Building React frontend..."
