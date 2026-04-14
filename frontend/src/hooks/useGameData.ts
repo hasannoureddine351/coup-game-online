@@ -20,7 +20,8 @@ export const useGameData = () => {
     return useQuery({
       queryKey: gameKeys.list(queryParams),
       queryFn: () => gameService.list(queryParams),
-      refetchInterval: queryParams?.id != null ? 2000 : false,
+      /** No polling — mutations and WebSocket invalidations refresh the list. */
+      refetchInterval: false,
       enabled,
     });
   };
@@ -34,7 +35,7 @@ export const useGameData = () => {
         const data = await gameService.currentGame();
         return data;
       },
-      /** Default: no polling — WebSocket + mutations invalidate this query. Pass refetchInterval (e.g. 2000) for lobby/waiting screens. */
+      /** Default: no polling — WebSocket + mutations invalidate this query. */
       refetchInterval:
         options?.refetchInterval !== undefined ? options.refetchInterval : false,
     });
