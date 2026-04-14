@@ -13,9 +13,8 @@ export default function LobbyRoomPage() {
   const { useCurrentGameQuery, leaveGame, deleteGame, toggleReady, startGame } = useGameData();
 
   const gameId = id != null ? parseInt(id, 10) : NaN;
-  const { data: currentGame, isLoading, isFetched } = useCurrentGameQuery({
-    refetchInterval: !Number.isNaN(gameId) ? 2000 : undefined,
-  });
+  /** No polling — useGameWebSocket + mutation success handlers refresh current-game cache. */
+  const { data: currentGame, isLoading, isFetched } = useCurrentGameQuery();
 
   useGameWebSocket(
     !Number.isNaN(gameId) ? gameId : null,
