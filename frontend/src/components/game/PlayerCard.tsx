@@ -1,5 +1,5 @@
 import { Coins, Shield, Skull } from 'lucide-react';
-import type { GamePlayer, Game } from '../../api/types.ts';
+import type { GamePlayer, Game } from '../../api/types';
 
 interface PlayerCardProps {
   player: GamePlayer;

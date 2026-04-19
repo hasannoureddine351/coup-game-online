@@ -1,5 +1,5 @@
-import type { Game, GamePlayer } from '../../api/types.ts';
-import PlayerCard from './PlayerCard.tsx';
+import type { Game } from '../../api/types';
+import PlayerCard from './PlayerCard';
 
 interface GameBoardProps {
   game: Game;

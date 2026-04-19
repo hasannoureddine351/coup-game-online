@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAuth } from "../contexts/auth-context.tsx";
+import { useAuth } from "../contexts/auth-context";
 import AuthMediaStack from "../components/auth/AuthMediaStack";
 
 function Kw({ children }) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useGameData } from '../../hooks/useGameData.ts';
-import type { Game, GamePlayer, GameAction, CharacterType } from '../../api/types.ts';
+import { useGameData } from '../../hooks/useGameData';
+import type { Game, GamePlayer, GameAction, CharacterType } from '../../api/types';
 import { toast } from 'sonner';
 import { AlertTriangle, Shield, X } from 'lucide-react';
 

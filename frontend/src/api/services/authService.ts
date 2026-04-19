@@ -1,11 +1,11 @@
-import { api } from "../client.ts";
-import { ENDPOINTS } from "../endpoints.ts";
+import { api } from "../client";
+import { ENDPOINTS } from "../endpoints";
 import type {
   User,
   LoginPayload,
   SignupPayload,
   AuthTokenResponse,
-} from "../types.ts";
+} from "../types";
 
 export const authService = {
   login(payload: LoginPayload) {

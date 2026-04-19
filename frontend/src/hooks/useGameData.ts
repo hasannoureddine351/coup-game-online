@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gameService } from "../api/services/gameService.ts";
-import type { Game, CurrentGame, ActionType, CharacterType } from "../api/types.ts";
+import { gameService } from "../api/services/gameService";
+import type { CurrentGame, ActionType, CharacterType } from "../api/types";
 
 export const gameKeys = {
   all: ["games"] as const,

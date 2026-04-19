@@ -1,6 +1,6 @@
-import { api } from "../client.ts";
-import { ENDPOINTS } from "../endpoints.ts";
-import type { Game, CurrentGame, GameAction, Challenge, Block } from "../types.ts";
+import { api } from "../client";
+import { ENDPOINTS } from "../endpoints";
+import type { Game, CurrentGame, GameAction, Challenge, Block } from "../types";
 
 export const gameService = {
   list(params?: { status?: string; id?: number }) {

@@ -1,4 +1,4 @@
-import type { PlayerCard, CharacterType } from '../../api/types.ts';
+import type { PlayerCard, CharacterType } from '../../api/types';
 
 interface CharacterCardProps {
   card: PlayerCard;

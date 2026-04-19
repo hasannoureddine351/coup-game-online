@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useGameData } from '../../hooks/useGameData.ts';
-import type { Game, GamePlayer, ActionType, CharacterType } from '../../api/types.ts';
+import { useGameData } from '../../hooks/useGameData';
+import type { Game, GamePlayer, ActionType } from '../../api/types';
 import { toast } from 'sonner';
 
 interface ActionPanelProps {

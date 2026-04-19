@@ -1,2 +1,2 @@
-export { StorageKey } from "./constants.ts";
-export { useDataFromStorageByKey } from "./useDataFromStorageByKey.ts";
+export { StorageKey } from "./constants";
+export { useDataFromStorageByKey } from "./useDataFromStorageByKey";
