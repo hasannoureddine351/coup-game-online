@@ -1,8 +1,8 @@
-import { useGameData } from "../../hooks/useGameData.ts";
-import type { Game, GameAction, GamePlayer } from "../../api/types.ts";
+import { useGameData } from "../../hooks/useGameData";
+import type { Game, GameAction, GamePlayer } from "../../api/types";
 import { toast } from "sonner";
 import { Eye } from "lucide-react";
-import { playerDisplayName } from "../../utils/actionLogFormat.ts";
+import { playerDisplayName } from "../../utils/actionLogFormat";
 
 type ChallengeRevealPanelProps = {
   game: Game;
@@ -11,7 +11,10 @@ type ChallengeRevealPanelProps = {
 };
 
 function getChallenge(a: GameAction) {
-  return a.challenge ?? (a as Record<string, unknown>).challenge;
+  return (
+    a.challenge ??
+    (a as unknown as Record<string, unknown>).challenge
+  );
 }
 
 export default function ChallengeRevealPanel({

@@ -4,14 +4,14 @@ import { Toaster } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
-import { AuthProvider } from './contexts/auth-context.tsx';
+import { AuthProvider } from './contexts/auth-context';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
-import PrivateRoute from './components/auth/PrivateRoute.tsx';
-import LobbyListPage from './pages/LobbyListPage.tsx';
-import LobbyRoomPage from './pages/LobbyRoomPage.tsx';
-import GamePage from './pages/GamePage.tsx';
+import PrivateRoute from './components/auth/PrivateRoute';
+import LobbyListPage from './pages/LobbyListPage';
+import LobbyRoomPage from './pages/LobbyRoomPage';
+import GamePage from './pages/GamePage';
 
 
 

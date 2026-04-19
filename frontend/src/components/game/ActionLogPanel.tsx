@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { Game } from "../../api/types.ts";
+import type { Game } from "../../api/types";
 import {
   buildActionLogParts,
   chronologicalActions,
-} from "../../utils/actionLogFormat.ts";
+} from "../../utils/actionLogFormat";
 
 type ActionLogPanelProps = {
   game: Game;

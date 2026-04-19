@@ -1,5 +1,5 @@
-import { useGameData } from '../../hooks/useGameData.ts';
-import type { Game, GameAction } from '../../api/types.ts';
+import { useGameData } from '../../hooks/useGameData';
+import type { Game, GameAction } from '../../api/types';
 import { toast } from 'sonner';
 import { Play } from 'lucide-react';
 

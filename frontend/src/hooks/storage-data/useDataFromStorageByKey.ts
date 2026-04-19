@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { usePersistentStorage } from "../usePersistentStorage.ts";
-import { StorageKey } from "./constants.ts";
+import { usePersistentStorage } from "../usePersistentStorage";
+import { StorageKey } from "./constants";
 
 export const useDataFromStorageByKey = (key: StorageKey) => {
   const storage = usePersistentStorage();

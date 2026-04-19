@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
-import { usePersistentStorage } from "../hooks/usePersistentStorage.ts";
-import { getItem, setItem, removeItem } from "../utils/persistentStorage.ts";
-import { StorageKey } from "../hooks/storage-data/index.ts";
-import { authService } from "../api/services/authService.ts";
-import type { User } from "../api/types.ts";
-import type { SignupPayload } from "../api/types.ts";
+import { usePersistentStorage } from "../hooks/usePersistentStorage";
+import { getItem, setItem, removeItem } from "../utils/persistentStorage";
+import { StorageKey } from "../hooks/storage-data/index";
+import { authService } from "../api/services/authService";
+import type { User } from "../api/types";
+import type { SignupPayload } from "../api/types";
 
 export type { User };
 

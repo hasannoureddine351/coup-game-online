@@ -5,10 +5,10 @@ import axios, {
   AxiosRequestConfig,
 } from "axios";
 import { toast } from "sonner";
-import { getItem } from "../utils/persistentStorage.ts";
-import { StorageKey } from "../hooks/storage-data/index.ts";
-import { extractErrorMessage } from "./errorUtils.ts";
-import { API_URL } from "./constants.ts";
+import { getItem } from "../utils/persistentStorage";
+import { StorageKey } from "../hooks/storage-data/index";
+import { extractErrorMessage } from "./errorUtils";
+import { API_URL } from "./constants";
 
 class ApiClient {
   private client: AxiosInstance;

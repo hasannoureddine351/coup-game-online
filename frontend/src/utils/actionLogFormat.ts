@@ -1,9 +1,9 @@
-import type { Block, Challenge, GameAction, GamePlayer } from "../api/types.ts";
+import type { Block, Challenge, GameAction, GamePlayer } from "../api/types";
 
 function getTargetPlayer(action: GameAction): GamePlayer | undefined {
   return (
     action.targetPlayer ??
-    (action as Record<string, unknown>).target_player ??
+    (action as unknown as Record<string, unknown>).target_player ??
     undefined
   ) as GamePlayer | undefined;
 }
@@ -11,21 +11,21 @@ function getTargetPlayer(action: GameAction): GamePlayer | undefined {
 function getChallenge(action: GameAction): Challenge | undefined {
   return (
     action.challenge ??
-    (action as Record<string, unknown>).challenge ??
+    (action as unknown as Record<string, unknown>).challenge ??
     undefined
   ) as Challenge | undefined;
 }
 
 function getBlock(action: GameAction): Block | undefined {
   return (
-    action.block ?? (action as Record<string, unknown>).block ?? undefined
+    action.block ?? (action as unknown as Record<string, unknown>).block ?? undefined
   ) as Block | undefined;
 }
 
 function challengedPlayer(ch: Challenge): GamePlayer | undefined {
   return (
     ch.challengedPlayer ??
-    (ch as Record<string, unknown>).challenged_player ??
+    (ch as unknown as Record<string, unknown>).challenged_player ??
     undefined
   ) as GamePlayer | undefined;
 }
@@ -33,7 +33,7 @@ function challengedPlayer(ch: Challenge): GamePlayer | undefined {
 function challengerPlayer(ch: Challenge): GamePlayer | undefined {
   return (
     ch.challenger ??
-    (ch as Record<string, unknown>).challenger ??
+    (ch as unknown as Record<string, unknown>).challenger ??
     undefined
   ) as GamePlayer | undefined;
 }

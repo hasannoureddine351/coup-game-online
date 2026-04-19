@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useAuth } from "../contexts/auth-context.tsx";
+import { useAuth } from "../contexts/auth-context";
 import AuthMediaStack from "../components/auth/AuthMediaStack";
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -11,20 +11,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await signup({ username, email, password, confirmPassword });
-      navigate("/lobby", { replace: true });
-    } catch {
-      // Error handled by auth context
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   async function handleSignup (e) {
     e.preventDefault();

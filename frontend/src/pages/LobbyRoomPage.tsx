@@ -2,9 +2,9 @@ import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
-import { useAuth } from "../contexts/auth-context.tsx";
-import { useGameData } from "../hooks/useGameData.ts";
-import { useGameWebSocket } from "../hooks/useGameWebSocket.ts";
+import { useAuth } from "../contexts/auth-context";
+import { useGameData } from "../hooks/useGameData";
+import { useGameWebSocket } from "../hooks/useGameWebSocket";
 
 export default function LobbyRoomPage() {
   const { id } = useParams<{ id: string }>();

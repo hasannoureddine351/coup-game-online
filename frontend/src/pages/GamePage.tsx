@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGameWebSocket } from '../hooks/useGameWebSocket.ts';
-import { useGameData, gameKeys } from '../hooks/useGameData.ts';
-import GameBoard from '../components/game/GameBoard.tsx';
-import GameOverModal from '../components/game/GameOverModal.tsx';
-import ActionPanel from '../components/game/ActionPanel.tsx';
-import PlayerHand from '../components/game/PlayerHand.tsx';
-import ChallengeBlockPanel from '../components/game/ChallengeBlockPanel.tsx';
-import AmbassadorExchangePanel from '../components/game/AmbassadorExchangePanel.tsx';
-import GameStatus from '../components/game/GameStatus.tsx';
-import ActionLogPanel from '../components/game/ActionLogPanel.tsx';
-import ChallengeRevealPanel from '../components/game/ChallengeRevealPanel.tsx';
+import { useGameWebSocket } from '../hooks/useGameWebSocket';
+import { useGameData, gameKeys } from '../hooks/useGameData';
+import GameBoard from '../components/game/GameBoard';
+import GameOverModal from '../components/game/GameOverModal';
+import ActionPanel from '../components/game/ActionPanel';
+import PlayerHand from '../components/game/PlayerHand';
+import ChallengeBlockPanel from '../components/game/ChallengeBlockPanel';
+import AmbassadorExchangePanel from '../components/game/AmbassadorExchangePanel';
+import GameStatus from '../components/game/GameStatus';
+import ActionLogPanel from '../components/game/ActionLogPanel';
+import ChallengeRevealPanel from '../components/game/ChallengeRevealPanel';
 import { toast } from 'sonner';
-import type { Game, GameAction, DeckCard } from '../api/types.ts';
-import { useAuth } from '../contexts/auth-context.tsx';
+import type { Game, GameAction, DeckCard } from '../api/types';
+import { useAuth } from '../contexts/auth-context';
 
 /** Laravel may expose relation as snake_case or camelCase on WebSocket payloads. */
 function getExchangeTempDeckCards(game: Game): DeckCard[] {
@@ -118,7 +118,9 @@ export default function GamePage() {
     );
   }
 
-  const currentPlayer = localGame.players?.find(p => p.user_id === user?.id || p.user_id?.toString() === user?.id?.toString());
+  const currentPlayer = localGame.players?.find(
+    (p) => String(p.user_id) === String(user?.id),
+  );
   const isCurrentTurn = Number(localGame.current_turn_player_id) === Number(currentPlayer?.id);
   const exchangeTempDeck = getExchangeTempDeckCards(localGame);
   const isWaiting = localGame.status === 'waiting';

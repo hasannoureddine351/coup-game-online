@@ -10,16 +10,26 @@ declare global {
 
 window.Pusher = Pusher;
 
+const WS_HOST = process.env.REACT_APP_WS_HOST!;
+const WS_PORT = Number(process.env.REACT_APP_WS_PORT);
+
+const API_BASE = process.env.REACT_APP_API_URL!;
+// IMPORTANT: should be http://13.51.234.165/coup
+
 export const initEcho = (token: string): Echo<any> => {
   return new Echo({
     broadcaster: 'reverb',
-    key: 'local-key',
-    wsHost: '127.0.0.1',
-    wsPort: 8080,
-    wssPort: 8080,
+    key: process.env.REACT_APP_WS_KEY,
+
+    wsHost: WS_HOST,
+    wsPort: WS_PORT,
+    wssPort: WS_PORT,
+
     forceTLS: false,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: 'http://localhost:8000/broadcasting/auth',
+
+    authEndpoint: `${API_BASE}/broadcasting/auth`,
+
     auth: {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -30,7 +40,8 @@ export const initEcho = (token: string): Echo<any> => {
 };
 
 export const disconnectEcho = (echo: Echo<any> | null) => {
-  if (echo) {
-    echo.disconnect();
-  }
+  if (echo) echo.disconnect();
 };
+
+
+

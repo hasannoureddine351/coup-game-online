@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { initEcho, disconnectEcho } from '../lib/echo.ts';
-import { gameKeys } from './useGameData.ts';
-import type { CurrentGame, Game } from '../api/types.ts';
+import { initEcho, disconnectEcho } from '../lib/echo';
+import { gameKeys } from './useGameData';
+import type { CurrentGame, Game } from '../api/types';
 
 interface GameWebSocketCallbacks {
   onGameStarted?: (data: any) => void;

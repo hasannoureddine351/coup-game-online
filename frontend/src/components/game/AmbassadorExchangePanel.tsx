@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useGameData } from '../../hooks/useGameData.ts';
-import type { Game, GamePlayer, PlayerCard, DeckCard } from '../../api/types.ts';
+import { useGameData } from '../../hooks/useGameData';
+import type { Game, GamePlayer, PlayerCard, DeckCard } from '../../api/types';
 import { toast } from 'sonner';
 
 type PickKey = `h:${number}` | `d:${number}`;

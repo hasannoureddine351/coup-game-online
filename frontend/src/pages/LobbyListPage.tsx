@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { User, LogOut, X } from "lucide-react";
-import { useAuth } from "../contexts/auth-context.tsx";
-import type { Game } from "../api/types.ts";
-import { useGameData } from "../hooks/useGameData.ts";
+import { useAuth } from "../contexts/auth-context";
+import type { Game } from "../api/types";
+import { useGameData } from "../hooks/useGameData";
 
 export default function LobbyListPage() {
   const navigate = useNavigate();
@@ -80,8 +80,16 @@ export default function LobbyListPage() {
             >
               <div className="flex items-center justify-between px-3 py-2 border-b border-coup-gold/20">
                 <div>
-                  <p className="text-sm font-medium text-light truncate">{currentUser?.username.length > 15 ? currentUser?.username.slice(0, 15) + "..." : currentUser?.username}</p>
-                  <p className="text-xs text-light/60 truncate">{currentUser?.email.length > 15 ? currentUser?.email.slice(0, 15) + "..." : currentUser?.email}</p>
+                  <p className="text-sm font-medium text-light truncate">
+                    {currentUser?.username && currentUser.username.length > 15
+                      ? `${currentUser.username.slice(0, 15)}...`
+                      : (currentUser?.username ?? "")}
+                  </p>
+                  <p className="text-xs text-light/60 truncate">
+                    {currentUser?.email && currentUser.email.length > 15
+                      ? `${currentUser.email.slice(0, 15)}...`
+                      : (currentUser?.email ?? "")}
+                  </p>
                 </div>
                 <button
                   type="button"
