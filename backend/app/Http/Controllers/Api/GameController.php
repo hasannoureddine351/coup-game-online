@@ -39,6 +39,7 @@ class GameController extends Controller
                     'challenge.challenger.user',
                     'challenge.challengedPlayer.user',
                     'block.blocker.user',
+                    'phasePasses',
                 ]);
             },
             'exchangeTempDeckCards',
@@ -169,6 +170,7 @@ class GameController extends Controller
                     'challenge.challenger.user',
                     'challenge.challengedPlayer.user',
                     'block.blocker.user',
+                    'phasePasses',
                 ]);
             },
             'exchangeTempDeckCards',
@@ -585,6 +587,7 @@ class GameController extends Controller
                         'challenge.challenger.user',
                         'challenge.challengedPlayer.user',
                         'block.blocker.user',
+                        'phasePasses',
                     ]);
                 },
             ]);

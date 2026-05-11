@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { useGameData } from '../../hooks/useGameData';
-import type { Game, GamePlayer, GameAction, CharacterType } from '../../api/types';
+import type {
+  Game,
+  GamePlayer,
+  GameAction,
+  CharacterType,
+  GameActionPhasePassRow,
+} from '../../api/types';
+import {
+  currentPassRound,
+  distinctPassCountForRound,
+  eligiblePassPlayerIds,
+  passesForRound,
+} from '../../utils/passRound';
 import { toast } from 'sonner';
 import { AlertTriangle, Shield, X } from 'lucide-react';
 
@@ -29,6 +41,15 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
   }
 
   const existingBlock = currentAction.block;
+  const passRound = currentPassRound(game, currentAction, existingBlock);
+  const eligiblePassIds = passRound ? eligiblePassPlayerIds(game, currentAction, existingBlock, passRound) : [];
+  const passCountForRound = distinctPassCountForRound(currentAction, passRound);
+  const hasPassedThisRound =
+    passRound != null &&
+    passesForRound(currentAction, passRound).some(
+      (p: GameActionPhasePassRow) => Number(p.game_player_id) === Number(currentPlayer.id)
+    );
+
   const isActionTaker = Number(currentPlayer.id) === Number(currentAction.player_id);
   const isBlocker = Boolean(
     existingBlock && Number(currentPlayer.id) === Number(existingBlock.blocker_id)
@@ -306,11 +327,16 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
 
         {showPass && (
           <div className="pt-2 border-t border-neutral-600">
+            {passRound && eligiblePassIds.length > 0 && (
+              <p className="text-sm text-neutral-300 mb-2">
+                Passed: {passCountForRound} / {eligiblePassIds.length}
+              </p>
+            )}
             <p className="text-sm text-neutral-400 mb-2">{passHintBlock}</p>
             <button
               type="button"
               onClick={handlePass}
-              disabled={passPhase.isPending}
+              disabled={passPhase.isPending || hasPassedThisRound}
               className="w-full bg-emerald-700/80 hover:bg-emerald-600 disabled:bg-neutral-800 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <X className="w-4 h-4" />

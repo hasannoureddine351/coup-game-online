@@ -89,6 +89,17 @@ export interface CurrentGame extends Game {
 export type ActionType = 'Income' | 'Foreign_Aid' | 'Tax' | 'Assassinate' | 'Steal' | 'Exchange' | 'Coup';
 export type CharacterType = 'Duke' | 'Assassin' | 'Captain' | 'Ambassador' | 'Contessa';
 
+/** Server pass-aggregation round (see game_action_phase_passes.pass_round). */
+export type PassRound = 'action_claim' | 'block_declaration' | 'block_claim';
+
+export interface GameActionPhasePassRow {
+  id: number;
+  game_action_id: number;
+  pass_round: PassRound;
+  game_player_id: number;
+  created_at: string;
+}
+
 export interface GameAction {
   id: number;
   game_id: number;
@@ -104,6 +115,7 @@ export interface GameAction {
   game?: Game;
   challenge?: Challenge;
   block?: Block;
+  phase_passes?: GameActionPhasePassRow[];
 }
 
 export interface Challenge {

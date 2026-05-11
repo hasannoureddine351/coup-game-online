@@ -7,6 +7,7 @@ use App\Models\GamePlayer;
 use App\Models\GameDeck;
 use App\Models\PlayerCard;
 use App\Models\GameAction;
+use App\Models\GameActionPhasePass;
 use App\Models\Challenge;
 use App\Models\Block;
 use App\Events\GameStateUpdated;
@@ -202,14 +203,6 @@ class GameService
         $this->syncChallengeRevealPhase($game);
         // Do not refresh() $game — it clears loaded relations; sync() already persisted turn_phase when needed.
 
-        if (Challenge::query()->where('game_action_id', $action->id)->whereNull('outcome')->exists()) {
-            throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
-        }
-
-        if ($game->turn_phase !== 'challenge' && $game->turn_phase !== 'block') {
-            throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
-        }
-
         $challenger = $game->players()->find($challengerId);
         if (! $challenger || $challenger->is_eliminated) {
             throw ValidationException::withMessages(['challenge' => 'Invalid challenger']);
@@ -226,6 +219,18 @@ class GameService
         }
 
         return DB::transaction(function () use ($action, $challenger, $challengedPlayer, $game) {
+            $lockedGame = Game::query()->where('id', $game->id)->lockForUpdate()->firstOrFail();
+
+            $this->syncChallengeRevealPhase($lockedGame);
+
+            if (Challenge::query()->where('game_action_id', $action->id)->whereNull('outcome')->exists()) {
+                throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
+            }
+
+            if ($lockedGame->turn_phase !== 'challenge' && $lockedGame->turn_phase !== 'block') {
+                throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
+            }
+
             $challenge = Challenge::create([
                 'game_action_id' => $action->id,
                 'challenger_id' => $challenger->id,
@@ -235,8 +240,10 @@ class GameService
                 'created_at' => now(),
             ]);
 
-            $game->turn_phase = 'challenge_reveal';
-            $game->save();
+            $this->deletePhasePassesForAction($action);
+
+            $lockedGame->turn_phase = 'challenge_reveal';
+            $lockedGame->save();
 
             return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
         });
@@ -245,13 +252,9 @@ class GameService
     public function submitBlock(GameAction $action, int $blockerId, string $claimedCharacter): Block
     {
         $game = $action->game;
-        
-        if ($game->turn_phase !== 'block') {
-            throw ValidationException::withMessages(['block' => 'Not in block phase']);
-        }
 
         $blocker = $game->players()->find($blockerId);
-        if (!$blocker || $blocker->is_eliminated) {
+        if (! $blocker || $blocker->is_eliminated) {
             throw ValidationException::withMessages(['block' => 'Invalid blocker']);
         }
 
@@ -259,7 +262,7 @@ class GameService
             throw ValidationException::withMessages(['block' => 'Cannot block your own action']);
         }
 
-        if (!$this->canBlockAction($action->action_type, $claimedCharacter)) {
+        if (! $this->canBlockAction($action->action_type, $claimedCharacter)) {
             throw ValidationException::withMessages(['block' => 'This character cannot block this action']);
         }
 
@@ -269,19 +272,29 @@ class GameService
             }
         }
 
-        $block = Block::create([
-            'game_action_id' => $action->id,
-            'blocker_id' => $blocker->id,
-            'claimed_character' => $claimedCharacter,
-            'was_challenged' => false,
-            'outcome' => 'successful',
-            'created_at' => now(),
-        ]);
+        return DB::transaction(function () use ($action, $blocker, $claimedCharacter, $game) {
+            $lockedGame = Game::query()->where('id', $game->id)->lockForUpdate()->firstOrFail();
 
-        $game->turn_phase = 'challenge';
-        $game->save();
+            if ($lockedGame->turn_phase !== 'block') {
+                throw ValidationException::withMessages(['block' => 'Not in block phase']);
+            }
 
-        return $block->fresh(['blocker.user']);
+            $block = Block::create([
+                'game_action_id' => $action->id,
+                'blocker_id' => $blocker->id,
+                'claimed_character' => $claimedCharacter,
+                'was_challenged' => false,
+                'outcome' => 'successful',
+                'created_at' => now(),
+            ]);
+
+            $this->deletePhasePassesForAction($action);
+
+            $lockedGame->turn_phase = 'challenge';
+            $lockedGame->save();
+
+            return $block->fresh(['blocker.user']);
+        });
     }
 
     protected function canBlockAction(string $actionType, string $claimedCharacter): bool
@@ -325,15 +338,6 @@ class GameService
         $game = $action->game;
 
         $this->syncChallengeRevealPhase($game);
-        $game->refresh();
-
-        if (Challenge::query()->where('game_action_id', $action->id)->whereNull('outcome')->exists()) {
-            throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
-        }
-
-        if ($game->turn_phase !== 'challenge') {
-            throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
-        }
 
         $challenger = $game->players()->find($challengerId);
         if (! $challenger || $challenger->is_eliminated) {
@@ -347,6 +351,18 @@ class GameService
         }
 
         return DB::transaction(function () use ($action, $challenger, $blocker, $block, $game) {
+            $lockedGame = Game::query()->where('id', $game->id)->lockForUpdate()->firstOrFail();
+
+            $this->syncChallengeRevealPhase($lockedGame);
+
+            if (Challenge::query()->where('game_action_id', $action->id)->whereNull('outcome')->exists()) {
+                throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
+            }
+
+            if ($lockedGame->turn_phase !== 'challenge') {
+                throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
+            }
+
             $challenge = Challenge::create([
                 'game_action_id' => $action->id,
                 'challenger_id' => $challenger->id,
@@ -356,11 +372,13 @@ class GameService
                 'created_at' => now(),
             ]);
 
+            $this->deletePhasePassesForAction($action);
+
             $block->was_challenged = true;
             $block->save();
 
-            $game->turn_phase = 'challenge_reveal';
-            $game->save();
+            $lockedGame->turn_phase = 'challenge_reveal';
+            $lockedGame->save();
 
             return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
         });
@@ -814,9 +832,23 @@ class GameService
             throw ValidationException::withMessages(['phase' => 'The challenged player must reveal a card first.']);
         }
 
-        if ($game->turn_phase === 'challenge') {
+        if (! in_array($game->turn_phase, ['challenge', 'block'], true)) {
+            throw ValidationException::withMessages(['phase' => 'Cannot pass in this phase']);
+        }
+
+        DB::transaction(function () use ($game, $passingPlayer) {
+            $lockedGame = Game::query()->where('id', $game->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedGame->turn_phase === 'challenge_reveal') {
+                throw ValidationException::withMessages(['phase' => 'The challenged player must reveal a card first.']);
+            }
+
+            if (! in_array($lockedGame->turn_phase, ['challenge', 'block'], true)) {
+                throw ValidationException::withMessages(['phase' => 'Cannot pass in this phase']);
+            }
+
             $pendingAction = GameAction::query()
-                ->where('game_id', $game->id)
+                ->where('game_id', $lockedGame->id)
                 ->where('status', 'pending')
                 ->orderByDesc('id')
                 ->first();
@@ -825,42 +857,164 @@ class GameService
                 throw ValidationException::withMessages(['action' => 'No pending action.']);
             }
 
-            // After a block: pass accepts the block — mark action blocked, then resolve.
-            $pendingUnchallengedBlock = GameAction::query()
-                ->where('id', $pendingAction->id)
-                ->whereHas('block', fn ($q) => $q->where('was_challenged', false))
-                ->exists();
+            $pendingAction->load('block');
+            $lockedGame->load('players');
 
-            if ($pendingUnchallengedBlock) {
-                $pendingAction->status = 'blocked';
-                $pendingAction->save();
-                $game->turn_phase = 'resolution';
-                $game->save();
+            $round = $this->currentPassRound($lockedGame, $pendingAction);
+            if ($round === null) {
+                throw ValidationException::withMessages(['phase' => 'Cannot pass in this phase']);
+            }
+
+            $eligibleIds = $this->eligiblePlayerIdsForRound($lockedGame, $pendingAction, $round);
+            $passerId = (int) $passingPlayer->id;
+
+            if (! in_array($passerId, array_map('intval', $eligibleIds), true)) {
+                throw ValidationException::withMessages(['phase' => $this->passIneligibleMessage($round, $pendingAction)]);
+            }
+
+            GameActionPhasePass::query()->firstOrCreate(
+                [
+                    'game_action_id' => $pendingAction->id,
+                    'pass_round' => $round,
+                    'game_player_id' => $passingPlayer->id,
+                ],
+                ['created_at' => now()]
+            );
+
+            $eligibleCount = count($eligibleIds);
+            $passCount = GameActionPhasePass::query()
+                ->where('game_action_id', $pendingAction->id)
+                ->where('pass_round', $round)
+                ->count();
+
+            if ($passCount < $eligibleCount) {
+                return;
+            }
+
+            $this->deletePhasePassesForAction($pendingAction);
+
+            if ($round === GameActionPhasePass::ROUND_ACTION_CLAIM) {
+                $pendingUnchallengedBlock = $pendingAction->block && ! $pendingAction->block->was_challenged;
+                if ($pendingUnchallengedBlock) {
+                    $pendingAction->status = 'blocked';
+                    $pendingAction->save();
+                    $lockedGame->turn_phase = 'resolution';
+                    $lockedGame->save();
+
+                    return;
+                }
+
+                $lockedGame->turn_phase = $this->actionHasBlockPhase($pendingAction->action_type) ? 'block' : 'resolution';
+                $lockedGame->save();
 
                 return;
             }
 
-            // Before any block: move to block only for actions that can be blocked (FA / assassinate / steal).
-            $game->turn_phase = $this->actionHasBlockPhase($pendingAction->action_type) ? 'block' : 'resolution';
-            $game->save();
+            if ($round === GameActionPhasePass::ROUND_BLOCK_DECLARATION) {
+                $lockedGame->turn_phase = 'resolution';
+                $lockedGame->save();
 
-            return;
-        }
-
-        if ($game->turn_phase === 'block') {
-            $pendingAction = GameAction::query()
-                ->where('game_id', $game->id)
-                ->where('status', 'pending')
-                ->orderByDesc('id')
-                ->first();
-
-            if ($pendingAction) {
-                $this->assertPassingPlayerMayActInBlockPhase($pendingAction, $passingPlayer);
+                return;
             }
 
-            $game->turn_phase = 'resolution';
-            $game->save();
+            if ($round === GameActionPhasePass::ROUND_BLOCK_CLAIM) {
+                $pendingAction->status = 'blocked';
+                $pendingAction->save();
+                $lockedGame->turn_phase = 'resolution';
+                $lockedGame->save();
+            }
+        });
+    }
+
+    protected function deletePhasePassesForAction(GameAction $action): void
+    {
+        GameActionPhasePass::query()->where('game_action_id', $action->id)->delete();
+    }
+
+    /**
+     * Which pass round applies for the current game state (server-side; matches client passRound.ts).
+     */
+    public function currentPassRound(Game $game, GameAction $action): ?string
+    {
+        if ($game->turn_phase === 'block') {
+            return GameActionPhasePass::ROUND_BLOCK_DECLARATION;
         }
+
+        if ($game->turn_phase === 'challenge') {
+            $block = $action->block;
+            if ($block && ! $block->was_challenged) {
+                return GameActionPhasePass::ROUND_BLOCK_CLAIM;
+            }
+
+            return GameActionPhasePass::ROUND_ACTION_CLAIM;
+        }
+
+        return null;
+    }
+
+    /**
+     * Non-eliminated player ids who may pass in this round (order not significant).
+     *
+     * @return list<int>
+     */
+    public function eligiblePlayerIdsForRound(Game $game, GameAction $action, string $round): array
+    {
+        $activePlayerIds = $game->players
+            ->where('is_eliminated', false)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if ($round === GameActionPhasePass::ROUND_ACTION_CLAIM) {
+            return array_values(array_filter($activePlayerIds, fn (int $id) => $id !== (int) $action->player_id));
+        }
+
+        if ($round === GameActionPhasePass::ROUND_BLOCK_DECLARATION) {
+            if ($action->action_type === self::ACTION_FOREIGN_AID) {
+                return array_values(array_filter($activePlayerIds, fn (int $id) => $id !== (int) $action->player_id));
+            }
+
+            if (in_array($action->action_type, [self::ACTION_ASSASSINATE, self::ACTION_STEAL], true)) {
+                if (! $action->target_player_id) {
+                    return [];
+                }
+                $tid = (int) $action->target_player_id;
+
+                return in_array($tid, $activePlayerIds, true) ? [$tid] : [];
+            }
+
+            return [];
+        }
+
+        if ($round === GameActionPhasePass::ROUND_BLOCK_CLAIM) {
+            $block = $action->block;
+            if (! $block) {
+                return [];
+            }
+            $bid = (int) $block->blocker_id;
+
+            return array_values(array_filter($activePlayerIds, fn (int $id) => $id !== $bid));
+        }
+
+        return [];
+    }
+
+    protected function passIneligibleMessage(string $round, GameAction $action): string
+    {
+        if ($round === GameActionPhasePass::ROUND_ACTION_CLAIM) {
+            return 'You cannot pass for this action right now.';
+        }
+
+        if ($round === GameActionPhasePass::ROUND_BLOCK_DECLARATION) {
+            if ($action->action_type === self::ACTION_FOREIGN_AID) {
+                return 'The acting player does not use the block phase.';
+            }
+
+            return 'Only the target player may pass or block during this phase.';
+        }
+
+        return 'You cannot pass for this block right now.';
     }
 
     /**
@@ -873,27 +1027,6 @@ class GameService
             self::ACTION_ASSASSINATE,
             self::ACTION_STEAL,
         ], true);
-    }
-
-    /**
-     * Who may pass during block phase: Foreign Aid — any player except the actor;
-     * Assassinate / Steal — only the target (they block or pass to let it through).
-     */
-    protected function assertPassingPlayerMayActInBlockPhase(GameAction $action, GamePlayer $passingPlayer): void
-    {
-        if ($action->action_type === self::ACTION_FOREIGN_AID) {
-            if ((int) $passingPlayer->id === (int) $action->player_id) {
-                throw ValidationException::withMessages(['phase' => 'The acting player does not use the block phase.']);
-            }
-
-            return;
-        }
-
-        if (in_array($action->action_type, [self::ACTION_ASSASSINATE, self::ACTION_STEAL], true)) {
-            if (! $action->target_player_id || (int) $passingPlayer->id !== (int) $action->target_player_id) {
-                throw ValidationException::withMessages(['phase' => 'Only the target player may pass or block during this phase.']);
-            }
-        }
     }
 
     public function chooseCardToLose(GamePlayer $player, int $cardId): void
