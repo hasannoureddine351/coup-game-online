@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Game;
+use App\Support\GameBroadcastPayload;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -27,23 +28,8 @@ class GameStateUpdated implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'game' => $this->game->load([
-                'players.user',
-                'players.cards' => function ($q) {
-                    $q->select('id', 'game_player_id', 'card_type', 'is_revealed', 'is_discarded', 'position');
-                },
-                'actions' => function ($q) {
-                    $q->orderBy('id', 'desc')->limit(150)->with([
-                        'player.user',
-                        'targetPlayer.user',
-                        'challenge.challenger.user',
-                        'challenge.challengedPlayer.user',
-                        'block.blocker.user',
-                    ]);
-                },
-                'exchangeTempDeckCards',
-            ]),
-            'message' => $this->message
+            'game' => $this->game->load(GameBroadcastPayload::relations()),
+            'message' => $this->message,
         ];
     }
 }

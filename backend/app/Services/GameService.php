@@ -10,7 +10,7 @@ use App\Models\GameAction;
 use App\Models\GameActionPhasePass;
 use App\Models\Challenge;
 use App\Models\Block;
-use App\Events\GameStateUpdated;
+use App\Support\GameStateBroadcaster;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -823,7 +823,7 @@ class GameService
             ? $winner->user->username.' wins!'
             : 'Game over';
 
-        event(new GameStateUpdated($fresh, $message));
+        GameStateBroadcaster::dispatch($fresh, $message);
     }
 
     public function passPhase(Game $game, GamePlayer $passingPlayer): void

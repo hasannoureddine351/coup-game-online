@@ -13,6 +13,7 @@ import {
   eligiblePassPlayerIds,
   passesForRound,
 } from '../../utils/passRound';
+import { isPlayerActiveInGame } from '../../utils/playerActive';
 import { toast } from 'sonner';
 import { AlertTriangle, Shield, X } from 'lucide-react';
 
@@ -38,6 +39,17 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
 
   if (game.turn_phase === 'challenge_reveal') {
     return null;
+  }
+
+  if (!isPlayerActiveInGame(currentPlayer)) {
+    return (
+      <div className="bg-neutral-900/40 border border-neutral-700 rounded-lg p-6">
+        <h3 className="font-bold text-lg mb-2 text-neutral-300">Out of the game</h3>
+        <p className="text-neutral-400 text-sm">
+          You have no influence left and cannot challenge, block, or pass.
+        </p>
+      </div>
+    );
   }
 
   const existingBlock = currentAction.block;
