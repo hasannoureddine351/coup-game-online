@@ -135,7 +135,9 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
   };
 
   const passHintBlock = isBlockBeingChallengedPhase
-    ? "Pass if you don't want to challenge the blocker's claim (the block will stand)."
+    ? isActionTaker
+      ? `Pass to let ${blockerName}'s block stand — your ${currentAction.action_type.replace('_', ' ').toLowerCase()} will not happen.`
+      : "Pass if you don't want to challenge the blocker's claim (the block will stand)."
     : game.turn_phase === 'block' && currentAction.action_type === 'Foreign_Aid'
       ? 'Block with Duke if you have it, or pass to allow Foreign Aid (+2 coins).'
       : game.turn_phase === 'block' && currentAction.action_type === 'Assassinate'
@@ -353,9 +355,11 @@ export default function ChallengeBlockPanel({ game, currentPlayer, currentAction
               PASS
               {game.turn_phase === 'challenge' && !isBlockBeingChallengedPhase
                 ? ' — NO CHALLENGE'
-                : game.turn_phase === 'block'
-                  ? ' — DECLINE BLOCK'
-                  : ''}
+                : game.turn_phase === 'challenge' && isBlockBeingChallengedPhase
+                  ? ' — LET BLOCK STAND'
+                  : game.turn_phase === 'block'
+                    ? ' — DECLINE BLOCK'
+                    : ''}
             </button>
           </div>
         )}

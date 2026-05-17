@@ -227,8 +227,12 @@ class GameService
                 throw ValidationException::withMessages(['challenge' => 'A challenge is already waiting for a reveal.']);
             }
 
-            if ($lockedGame->turn_phase !== 'challenge' && $lockedGame->turn_phase !== 'block') {
+            if ($lockedGame->turn_phase !== 'challenge') {
                 throw ValidationException::withMessages(['challenge' => 'Not in challenge phase']);
+            }
+
+            if (Block::query()->where('game_action_id', $action->id)->exists()) {
+                throw ValidationException::withMessages(['challenge' => 'A block is in progress; challenge the block or pass.']);
             }
 
             $challenge = Challenge::create([
@@ -277,6 +281,10 @@ class GameService
 
             if ($lockedGame->turn_phase !== 'block') {
                 throw ValidationException::withMessages(['block' => 'Not in block phase']);
+            }
+
+            if (Block::query()->where('game_action_id', $action->id)->exists()) {
+                throw ValidationException::withMessages(['block' => 'This action is already blocked.']);
             }
 
             $block = Block::create([
@@ -451,7 +459,7 @@ class GameService
             if ($isActionClaimChallenge) {
                 $this->exchangeCard($player, $card, $game);
                 $this->loseInfluence($challenger, $game);
-                $game->turn_phase = 'resolution';
+                $game->turn_phase = $this->actionHasBlockPhase($action->action_type) ? 'block' : 'resolution';
                 $game->save();
             } else {
                 if (! $block) {
