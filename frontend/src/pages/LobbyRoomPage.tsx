@@ -13,103 +13,103 @@ export default function LobbyRoomPage() {
   const { useCurrentGameQuery, leaveGame, deleteGame, toggleReady, startGame } = useGameData();
 
   const gameId = id != null ? parseInt(id, 10) : NaN;
-  /** No polling — useGameWebSocket + mutation success handlers refresh current-game cache. */
   const { data: currentGame, isLoading, isFetched } = useCurrentGameQuery();
 
   useGameWebSocket(
     !Number.isNaN(gameId) ? gameId : null,
     token,
-    {
-      onGameStarted: () => navigate("/game", { replace: true }),
-    }
+    { onGameStarted: () => navigate("/game", { replace: true }) }
   );
 
   useEffect(() => {
-    if (Number.isNaN(gameId)) {
-      navigate("/lobby", { replace: true });
-      return;
-    }
+    if (Number.isNaN(gameId)) { navigate("/lobby", { replace: true }); return; }
     if (isFetched && !isLoading && (!currentGame?.id || currentGame.id !== gameId)) {
-      navigate("/lobby", { replace: true });
-      return;
+      navigate("/lobby", { replace: true }); return;
     }
-    // Only treat in_progress as "go to game" for THIS lobby. Otherwise stale cache
-    // from another match can navigate to /game while the URL is /lobby/:newId.
     if (currentGame?.id === gameId && currentGame.status === "in_progress") {
       navigate("/game", { replace: true });
     }
   }, [gameId, isLoading, isFetched, currentGame, navigate]);
 
   const handleLeave = () =>
-    leaveGame.mutate(gameId, {
-      onSuccess: () => navigate("/lobby", { replace: true }),
-    });
+    leaveGame.mutate(gameId, { onSuccess: () => navigate("/lobby", { replace: true }) });
 
   const handleDelete = () =>
-    deleteGame.mutate(gameId, {
-      onSuccess: () => navigate("/lobby", { replace: true }),
-    });
+    deleteGame.mutate(gameId, { onSuccess: () => navigate("/lobby", { replace: true }) });
 
-  const handleToggleReady = () => {
-    toggleReady.mutate(gameId);
-  };
+  const handleToggleReady = () => toggleReady.mutate(gameId);
 
-  const handleStartGame = () => {
-    startGame.mutate(gameId, {
-      onSuccess: () => navigate("/game", { replace: true }),
-    });
-  };
+  const handleStartGame = () =>
+    startGame.mutate(gameId, { onSuccess: () => navigate("/game", { replace: true }) });
 
-  if (Number.isNaN(gameId)) {
-    return null;
-  }
+  if (Number.isNaN(gameId)) return null;
 
   const playerCount = currentGame?.players?.length ?? 0;
   const myPlayer = currentGame?.players?.find(
     (p) => String(p.user_id) === String(user?.id)
   );
   const iAmReady = myPlayer?.is_ready ?? false;
+  const allReady = currentGame?.players?.every(p => p.is_ready) ?? false;
+  const canStart = currentGame?.host && playerCount >= 2 && allReady;
 
   return (
-    <div className="min-h-screen flex flex-col bg-coup-darker">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-coup-gold/30">
-        <p className="font-gothic text-2xl md:text-3xl font-black tracking-widest text-coup-gold">
-          COUP
-        </p>
+    <div className="crt-wrapper min-h-screen flex flex-col bg-cyber-bg">
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-4 bg-cyber-panel border-b-2 border-neon-cyan"
+        style={{ boxShadow: '0 2px 0px rgba(0,240,255,0.2)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-2.5 h-2.5 bg-neon-cyan animate-blink" style={{ boxShadow: '0 0 6px var(--neon-cyan)' }} />
+          <p className="font-pixel text-neon-cyan text-sm glow-cyan tracking-widest">COUP</p>
+        </div>
         <button
           onClick={() => navigate("/lobby")}
-          className="text-coup-gold/90 hover:text-coup-gold transition-colors"
+          className="font-pixel text-[8px] text-neon-cyan/70 hover:text-neon-cyan transition-colors tracking-widest"
         >
-          ← Back to lobbies
+          ← BACK TO LOBBY
         </button>
       </header>
 
       <main className="flex-1 flex flex-col items-center p-6 md:p-10">
         <div className="w-full max-w-2xl">
           {isLoading ? (
-            <div className="flex justify-center py-16">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-t-transparent border-coup-gold" />
+            <div className="flex flex-col items-center py-16 gap-4">
+              <div className="pixel-spinner" />
+              <p className="font-pixel text-neon-cyan text-[9px] animate-blink">LOADING SESSION...</p>
             </div>
           ) : currentGame ? (
             <>
-              <div className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-light">
-                  Lobby #{currentGame?.id}
-                </h1>
-                <p className="text-light/70">
-                  {playerCount} / {currentGame?.max_players} players
-                </p>
+              {/* Room header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="font-pixel text-neon-cyan text-sm glow-cyan tracking-widest mb-1">
+                    ▸ SESSION #{currentGame?.id}
+                  </h1>
+                  <p className="font-mono text-[10px] text-white/40 uppercase">
+                    Waiting for operators to ready up
+                  </p>
+                </div>
+                <div className="pixel-panel-yellow px-3 py-2 text-right">
+                  <p className="font-mono text-[9px] text-neon-yellow/60">OPERATORS</p>
+                  <p className="font-pixel text-neon-yellow text-[10px] glow-yellow">
+                    {playerCount} / {currentGame?.max_players}
+                  </p>
+                </div>
               </div>
 
+              <div className="pixel-divider mb-5" />
+
+              {/* Player list */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-xl bg-coup-dark border border-coup-gold/30 overflow-hidden mb-6"
+                className="pixel-panel overflow-hidden mb-6"
               >
-                <h2 className="px-4 py-3 text-sm font-medium text-light/80 border-b border-coup-gold/20">
-                  Players
-                </h2>
-                <ul className="divide-y divide-coup-gold/20">
+                <div className="px-4 py-2.5 border-b border-cyber-border bg-cyber-bg">
+                  <p className="font-pixel text-[8px] text-white/50 tracking-widest uppercase">
+                    Connected Operators
+                  </p>
+                </div>
+                <ul className="divide-y divide-cyber-border">
                   {currentGame.players
                     ?.sort((a, b) => a.seat_number - b.seat_number)
                     .map((player) => (
@@ -118,19 +118,28 @@ export default function LobbyRoomPage() {
                         className="flex items-center justify-between px-4 py-3"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-light">
+                          <div className={`w-2 h-2 ${player.is_ready ? 'bg-neon-green' : 'bg-white/20'}`}
+                            style={player.is_ready ? { boxShadow: '0 0 4px var(--neon-green)' } : {}} />
+                          <span className="font-pixel text-[9px] text-white">
                             {player.user?.username ?? `Player ${player.seat_number}`}
                           </span>
                           {currentGame.created_by_id != null &&
-                          String(player.user_id) === String(currentGame.created_by_id) ? (
-                            <Crown className="w-4 h-4 text-coup-gold" aria-hidden />
+                            String(player.user_id) === String(currentGame.created_by_id) ? (
+                            <Crown className="w-3.5 h-3.5 text-neon-yellow" aria-hidden />
                           ) : null}
                         </div>
                         <div className="flex items-center gap-3">
-                          {player.is_ready && (
-                            <span className="text-emerald-400 text-sm font-medium">Ready</span>
+                          {player.is_ready ? (
+                            <span className="font-pixel text-[7px] text-neon-green glow-green border border-neon-green/40 px-1.5 py-0.5"
+                              style={{ boxShadow: '1px 1px 0px #000' }}>
+                              READY
+                            </span>
+                          ) : (
+                            <span className="font-pixel text-[7px] text-white/30 border border-white/10 px-1.5 py-0.5">
+                              WAITING
+                            </span>
                           )}
-                          <span className="text-sm text-light/60">
+                          <span className="font-mono text-[9px] text-white/30">
                             Seat {player.seat_number}
                           </span>
                         </div>
@@ -139,65 +148,67 @@ export default function LobbyRoomPage() {
                 </ul>
               </motion.div>
 
+              {/* Action buttons */}
               <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <button
                     onClick={handleToggleReady}
                     disabled={toggleReady.isPending || currentGame.status !== 'waiting'}
-                    className={`px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-                      iAmReady
-                        ? 'bg-neutral-700 hover:bg-neutral-600'
-                        : 'bg-emerald-600 hover:bg-emerald-700'
-                    }`}
+                    className={iAmReady ? 'btn-red px-6 py-2.5 text-[9px] tracking-widest' : 'btn-green px-6 py-2.5 text-[9px] tracking-widest'}
                   >
                     {toggleReady.isPending
-                      ? "Updating..."
+                      ? "UPDATING..."
                       : iAmReady
-                      ? "Not Ready"
-                      : "Ready"}
+                      ? "NOT READY"
+                      : "READY UP"}
                   </button>
 
-                  {currentGame.host && playerCount >= 2 && currentGame.players?.every(p => p.is_ready) && (
+                  {canStart && (
                     <button
                       onClick={handleStartGame}
                       disabled={startGame.isPending}
-                      className="bg-coup-gold hover:bg-coup-gold/90 text-coup-darker px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="btn-cyan px-6 py-2.5 text-[9px] tracking-widest animate-glow-pulse"
                     >
-                      {startGame.isPending ? "Starting..." : "Start Game"}
+                      {startGame.isPending ? "STARTING..." : "▶ START GAME"}
                     </button>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <button
                     onClick={handleLeave}
                     disabled={leaveGame.isPending}
-                    className="btn-secondary px-6 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="btn-yellow px-6 py-2 text-[9px] tracking-widest"
                   >
-                    {leaveGame.isPending ? "Leaving…" : "Leave"}
+                    {leaveGame.isPending ? "LEAVING..." : "LEAVE SESSION"}
                   </button>
                   {currentGame.host && (
                     <button
                       onClick={handleDelete}
                       disabled={deleteGame.isPending}
-                      className="btn-secondary px-6 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="btn-red px-6 py-2 text-[9px] tracking-widest"
                     >
-                      {deleteGame.isPending ? "Deleting…" : "Delete lobby"}
+                      {deleteGame.isPending ? "DELETING..." : "DELETE LOBBY"}
                     </button>
                   )}
                 </div>
 
+                {/* Status hints */}
                 {playerCount < 2 && (
-                  <p className="text-sm text-yellow-400">Need at least 2 players to start</p>
+                  <p className="font-mono text-[10px] text-neon-yellow">
+                    ⚠ Need at least 2 operators to start
+                  </p>
                 )}
-                {playerCount >= 2 && !currentGame.players?.every(p => p.is_ready) && (
-                  <p className="text-sm text-yellow-400">All players must be ready to start</p>
+                {playerCount >= 2 && !allReady && (
+                  <p className="font-mono text-[10px] text-neon-yellow">
+                    ⚠ All operators must be ready to start
+                  </p>
                 )}
               </div>
 
               {currentGame?.status !== "waiting" && (
-                <p className="mt-4 text-sm text-light/60">
-                  This game is no longer waiting for players.
+                <p className="mt-4 font-mono text-[10px] text-white/40">
+                  This session is no longer accepting players.
                 </p>
               )}
             </>

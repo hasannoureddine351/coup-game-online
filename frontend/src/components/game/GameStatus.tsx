@@ -9,33 +9,40 @@ interface GameStatusProps {
   isCurrentPlayerTurn: boolean;
 }
 
+const PHASE_COLOR: Record<string, string> = {
+  action:            'text-neon-cyan glow-cyan',
+  challenge:         'text-neon-yellow glow-yellow',
+  block:             'text-neon-purple glow-purple',
+  challenge_reveal:  'text-neon-red glow-red',
+  resolution:        'text-neon-green glow-green',
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  pending:   'text-neon-yellow border-neon-yellow/60',
+  completed: 'text-neon-green border-neon-green/60',
+  blocked:   'text-neon-red border-neon-red/60',
+  challenged:'text-neon-purple border-neon-purple/60',
+};
+
 export default function GameStatus({ game, currentAction, isCurrentPlayerTurn }: GameStatusProps) {
   const { resolveAction } = useGameData();
 
   const handleResolve = () => {
     if (!currentAction) return;
-
-    resolveAction.mutate({
-      gameId: game.id,
-      actionId: currentAction.id
-    }, {
+    resolveAction.mutate({ gameId: game.id, actionId: currentAction.id }, {
       onSuccess: () => toast.success('Action resolved!'),
       onError: (error: any) =>
         toast.error(error?.response?.data?.errors?.action?.[0] || error?.message || 'Failed to resolve action')
     });
   };
 
-  // Backend resolveAction handles: pending (apply effect), challenged/blocked (advance turn only).
-  const canResolveStatus =
-    currentAction &&
-    currentAction.status !== 'completed';
+  const canResolveStatus = currentAction && currentAction.status !== 'completed';
 
   const exchangeTemp =
     game.exchange_temp_deck_cards ??
     (game as Game & { exchangeTempDeckCards?: Game['exchange_temp_deck_cards'] }).exchangeTempDeckCards ??
     [];
 
-  /** After first Resolve, deck draws exist; player must finalize via /exchange/finalize — not Resolve again. */
   const ambassadorAwaitingCardChoice =
     currentAction?.action_type === 'Exchange' &&
     currentAction?.status === 'pending' &&
@@ -47,59 +54,75 @@ export default function GameStatus({ game, currentAction, isCurrentPlayerTurn }:
     isCurrentPlayerTurn &&
     !ambassadorAwaitingCardChoice;
 
+  const phaseColorClass = PHASE_COLOR[game.turn_phase ?? ''] ?? 'text-white/70';
+  const statusBadgeClass = STATUS_BADGE[currentAction?.status ?? ''] ?? 'text-white/50 border-white/20';
+
   return (
-    <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6">
-      <h2 className="text-xl font-bold mb-4">Game Status</h2>
-      
+    <div className="pixel-panel p-4">
+      <h2 className="font-pixel text-[9px] text-white/60 tracking-widest mb-4">▸ GAME STATUS</h2>
+
       <div className="space-y-3">
+        {/* Phase display */}
         <div className="flex justify-between items-center">
-          <span className="text-neutral-400">Phase:</span>
-          <span className="font-bold text-emerald-400 capitalize">{game.turn_phase?.replace('_', ' ')}</span>
+          <span className="font-mono text-[10px] text-white/40 uppercase">Current Phase</span>
+          <span className={`font-pixel text-[9px] uppercase ${phaseColorClass}`}>
+            {game.turn_phase?.replace('_', ' ') ?? '—'}
+          </span>
         </div>
 
+        <div className="pixel-divider" />
+
+        {/* Current action */}
         {currentAction && (
-          <div className="bg-neutral-900/50 border border-neutral-600 rounded-lg p-4">
-            <p className="text-sm text-neutral-400 mb-1">Current Action</p>
-            <p className="font-bold mb-2">
-              {currentAction.player?.user?.username} → {currentAction.action_type}
+          <div className="bg-cyber-bg border border-cyber-border p-3" style={{ boxShadow: '2px 2px 0px #000' }}>
+            <p className="font-mono text-[9px] text-white/40 uppercase mb-2">Active Action</p>
+            <p className="font-pixel text-[9px] text-white mb-2">
+              <span className="text-neon-yellow">{currentAction.player?.user?.username}</span>
+              <span className="text-white/40 mx-1">→</span>
+              <span className="text-neon-cyan">{currentAction.action_type.replace('_', ' ')}</span>
             </p>
-            
+
             {currentAction.claimed_character && (
-              <p className="text-sm text-purple-400">Claims: {currentAction.claimed_character}</p>
-            )}
-            
-            {currentAction.targetPlayer && (
-              <p className="text-sm text-red-400">Target: {currentAction.targetPlayer.user?.username}</p>
+              <p className="font-mono text-[9px] text-neon-purple mb-1">
+                Claims: {currentAction.claimed_character}
+              </p>
             )}
 
-            <div className="mt-2 pt-2 border-t border-neutral-700">
-              <span className={`text-xs font-medium px-2 py-1 rounded ${
-                currentAction.status === 'pending' ? 'bg-yellow-900/30 text-yellow-400' :
-                currentAction.status === 'completed' ? 'bg-emerald-900/30 text-emerald-400' :
-                currentAction.status === 'blocked' ? 'bg-red-900/30 text-red-400' :
-                'bg-neutral-700 text-neutral-300'
-              }`}>
-                {currentAction.status}
+            {currentAction.targetPlayer && (
+              <p className="font-mono text-[9px] text-neon-red mb-1">
+                Target: {currentAction.targetPlayer.user?.username}
+              </p>
+            )}
+
+            <div className="mt-2 pt-2 border-t border-cyber-border">
+              <span
+                className={`font-pixel text-[7px] border px-2 py-0.5 ${statusBadgeClass}`}
+                style={{ boxShadow: '1px 1px 0px #000' }}
+              >
+                {currentAction.status?.toUpperCase()}
               </span>
             </div>
           </div>
         )}
 
+        {/* Ambassador hint */}
         {ambassadorAwaitingCardChoice && isCurrentPlayerTurn && (
-          <p className="text-sm text-amber-200 bg-amber-950/40 border border-amber-700/50 rounded-lg px-3 py-2">
-            Ambassador: pick the card(s) you keep (same number as your influence) in the exchange panel above, then
-            confirm.
-          </p>
+          <div className="pixel-panel-yellow p-3">
+            <p className="font-mono text-[10px] text-neon-yellow">
+              ▸ Ambassador: pick the card(s) you keep in the exchange panel above, then confirm.
+            </p>
+          </div>
         )}
 
+        {/* Resolve button */}
         {showResolveButton && (
           <button
             onClick={handleResolve}
             disabled={resolveAction.isPending}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-neutral-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="btn-green w-full py-3 text-[9px] tracking-widest flex items-center justify-center gap-2"
           >
-            <Play className="w-5 h-5" />
-            Resolve Action
+            <Play className="w-4 h-4" />
+            {resolveAction.isPending ? 'PROCESSING...' : 'RESOLVE ACTION'}
           </button>
         )}
       </div>

@@ -8,58 +8,108 @@ interface PlayerCardProps {
   game: Game;
 }
 
+const ROLE_PIXEL: Record<string, string> = {
+  Duke:       '♛',
+  Assassin:   '✝',
+  Captain:    '⚓',
+  Ambassador: '◈',
+  Contessa:   '♦',
+};
+
 export default function PlayerCard({ player, isCurrentUser, isCurrentTurn }: PlayerCardProps) {
   const activeCards = player.cards?.filter(c => !c.is_revealed && !c.is_discarded) || [];
   const revealedCards = player.cards?.filter(c => c.is_revealed) || [];
 
+  const borderClass = isCurrentTurn
+    ? 'border-neon-cyan shadow-[0_0_12px_rgba(0,240,255,0.5),4px_4px_0px_#000]'
+    : isCurrentUser
+    ? 'border-neon-yellow shadow-[0_0_8px_rgba(255,221,0,0.3),4px_4px_0px_#000]'
+    : 'border-cyber-border shadow-[4px_4px_0px_#000]';
+
   return (
     <div
-      className={`p-4 rounded-lg border-2 transition-all ${
-        isCurrentTurn
-          ? 'bg-emerald-900/20 border-emerald-600 shadow-lg shadow-emerald-900/50'
-          : 'bg-neutral-900/50 border-neutral-700'
-      } ${isCurrentUser ? 'ring-2 ring-blue-500' : ''} ${
+      className={`relative bg-cyber-panel border-2 transition-all duration-150 ${borderClass} ${
         player.is_eliminated ? 'opacity-50' : ''
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full ${player.is_eliminated ? 'bg-red-500' : 'bg-emerald-500'}`} />
-          <h3 className="font-bold text-lg">
-            {player.user?.username}
-            {isCurrentUser && <span className="text-blue-400 text-sm ml-2">(You)</span>}
-          </h3>
-        </div>
-        
-        {player.is_eliminated && (
-          <Skull className="w-5 h-5 text-red-500" />
-        )}
-      </div>
+      {/* Turn indicator strip */}
+      {isCurrentTurn && (
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-neon-cyan shadow-neon-cyan" />
+      )}
 
-      <div className="flex items-center gap-4 mb-3">
-        <div className="flex items-center gap-1.5">
-          <Coins className="w-4 h-4 text-yellow-400" />
-          <span className="text-yellow-400 font-bold">{player.coins}</span>
-          <span className="text-neutral-500 text-sm">coins</span>
-        </div>
-        
-        <div className="flex items-center gap-1.5">
-          <Shield className="w-4 h-4 text-emerald-400" />
-          <span className="text-emerald-400 font-bold">{activeCards.length}</span>
-          <span className="text-neutral-500 text-sm">influence</span>
-        </div>
-      </div>
+      <div className="p-3">
+        {/* Player header */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className={`w-2.5 h-2.5 shrink-0 ${
+                player.is_eliminated
+                  ? 'bg-neon-red shadow-neon-red'
+                  : isCurrentTurn
+                  ? 'bg-neon-cyan shadow-neon-cyan animate-glow-pulse'
+                  : 'bg-neon-green'
+              }`}
+            />
+            <h3 className="font-pixel text-[9px] text-white truncate">
+              {player.user?.username}
+            </h3>
+            {isCurrentUser && (
+              <span className="font-mono text-[9px] text-neon-cyan shrink-0">[YOU]</span>
+            )}
+          </div>
 
-      <div className="space-y-2">
+          {player.is_eliminated ? (
+            <Skull className="w-4 h-4 text-neon-red shrink-0" />
+          ) : isCurrentTurn ? (
+            <span className="font-pixel text-[8px] text-neon-cyan glow-cyan animate-blink shrink-0">
+              ▶ TURN
+            </span>
+          ) : null}
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-1">
+            <span className="text-neon-yellow text-xs">◈</span>
+            <span className="font-pixel text-neon-yellow text-[9px] glow-yellow">{player.coins}</span>
+            <span className="font-mono text-white/40 text-[9px]">coins</span>
+          </div>
+          <div className="w-px h-3 bg-cyber-border" />
+          <div className="flex items-center gap-1">
+            <Shield className="w-3 h-3 text-neon-cyan" />
+            <span className="font-pixel text-neon-cyan text-[9px] glow-cyan">{activeCards.length}</span>
+            <span className="font-mono text-white/40 text-[9px]">inf</span>
+          </div>
+        </div>
+
+        {/* Cards */}
         <div className="flex gap-2">
           {isCurrentUser ? (
             activeCards.map((card) => (
               <div
                 key={card.id}
-                className="flex-1 bg-neutral-800 border border-neutral-600 rounded px-2 py-3 text-center"
+                className={`flex-1 border px-2 py-2.5 text-center relative overflow-hidden
+                  ${card.card_type === 'Duke'       ? 'border-neon-purple bg-neon-purple/10' :
+                    card.card_type === 'Assassin'   ? 'border-neon-red bg-neon-red/10' :
+                    card.card_type === 'Captain'    ? 'border-neon-cyan bg-neon-cyan/10' :
+                    card.card_type === 'Ambassador' ? 'border-neon-green bg-neon-green/10' :
+                    card.card_type === 'Contessa'   ? 'border-neon-pink bg-neon-pink/10' :
+                    'border-cyber-border bg-cyber-bg'
+                  }`}
+                style={{ boxShadow: '2px 2px 0px #000' }}
               >
-                <p className="text-xs text-neutral-400">Your Card</p>
-                <p className="font-bold text-sm">{card.card_type}</p>
+                <p className={`text-lg mb-0.5
+                  ${card.card_type === 'Duke'       ? 'text-neon-purple' :
+                    card.card_type === 'Assassin'   ? 'text-neon-red' :
+                    card.card_type === 'Captain'    ? 'text-neon-cyan' :
+                    card.card_type === 'Ambassador' ? 'text-neon-green' :
+                    card.card_type === 'Contessa'   ? 'text-neon-pink' :
+                    'text-white'
+                  }`}
+                >
+                  {ROLE_PIXEL[card.card_type] ?? '?'}
+                </p>
+                <p className="font-pixel text-[7px] text-white/90">{card.card_type}</p>
               </div>
             ))
           ) : (
@@ -67,23 +117,28 @@ export default function PlayerCard({ player, isCurrentUser, isCurrentTurn }: Pla
               {activeCards.map((_, idx) => (
                 <div
                   key={idx}
-                  className="flex-1 bg-neutral-800 border border-neutral-600 rounded px-2 py-3 text-center"
+                  className="flex-1 border border-cyber-border bg-cyber-bg px-2 py-2.5 text-center"
+                  style={{ boxShadow: '2px 2px 0px #000' }}
                 >
-                  <div className="w-8 h-10 mx-auto bg-neutral-700 rounded" />
+                  <div className="w-6 h-8 mx-auto bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center">
+                    <span className="text-neon-cyan/40 text-xs">?</span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
+        {/* Revealed cards */}
         {revealedCards.length > 0 && (
-          <div className="pt-2 border-t border-neutral-700">
-            <p className="text-xs text-neutral-500 mb-1">Revealed:</p>
-            <div className="flex gap-2 flex-wrap">
+          <div className="mt-2 pt-2 border-t border-cyber-border">
+            <p className="font-mono text-[9px] text-white/40 mb-1 uppercase">Revealed:</p>
+            <div className="flex gap-1.5 flex-wrap">
               {revealedCards.map((card) => (
                 <span
                   key={card.id}
-                  className="text-xs bg-red-900/30 border border-red-700 px-2 py-1 rounded"
+                  className="font-pixel text-[7px] text-neon-red border border-neon-red/50 px-1.5 py-0.5 grayscale opacity-70"
+                  style={{ boxShadow: '1px 1px 0px #000' }}
                 >
                   {card.card_type}
                 </span>
@@ -92,6 +147,22 @@ export default function PlayerCard({ player, isCurrentUser, isCurrentTurn }: Pla
           </div>
         )}
       </div>
+
+      {/* Eliminated overlay */}
+      {player.is_eliminated && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
+          <span
+            className="font-pixel text-[9px] text-neon-red border-2 border-neon-red px-2 py-1 rotate-[-12deg]"
+            style={{
+              textShadow: '0 0 8px #ff0055',
+              boxShadow: '0 0 10px rgba(255,0,85,0.5)',
+              background: 'rgba(0,0,0,0.85)',
+            }}
+          >
+            ELIMINATED
+          </span>
+        </div>
+      )}
     </div>
   );
 }

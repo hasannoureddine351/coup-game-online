@@ -16,20 +16,41 @@ export default function AuthMediaStack() {
 
   return (
     <div className="w-full max-w-5xl md:max-w-6xl mx-auto md:mx-0">
-      <div className="relative p-4 md:p-6 rounded-2xl bg-neutral-800 border-4 border-neutral-700 shadow-2xl shadow-black/50">
-        {/* Antenna */}
-        <div className="absolute -top-6 md:-top-8 left-1/2 -translate-x-1/2 flex gap-8 md:gap-12">
-          <div className="w-1 md:w-1.5 h-8 md:h-12 bg-neutral-600 rounded-full -rotate-12 origin-bottom" />
-          <div className="w-1 md:w-1.5 h-8 md:h-12 bg-neutral-600 rounded-full rotate-12 origin-bottom" />
+      {/* CRT monitor shell */}
+      <div
+        className="relative p-4 md:p-6 bg-cyber-panel border-4 border-neon-cyan"
+        style={{ boxShadow: '8px 8px 0px #000, 0 0 30px rgba(0,240,255,0.15)' }}
+      >
+        {/* Pixel antennas */}
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-10">
+          <div className="w-1 h-8 bg-neon-cyan/40 -rotate-12 origin-bottom" />
+          <div className="w-1 h-8 bg-neon-cyan/40 rotate-12 origin-bottom" />
         </div>
+
+        {/* Corner brackets */}
+        <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-neon-cyan" />
+        <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-neon-cyan" />
+        <div className="absolute bottom-1 left-1 w-4 h-4 border-b-2 border-l-2 border-neon-cyan" />
+        <div className="absolute bottom-1 right-1 w-4 h-4 border-b-2 border-r-2 border-neon-cyan" />
+
         {/* Screen */}
-        <div className="relative w-full aspect-[8/5] md:aspect-[16/9] min-h-[320px] md:min-h-[480px] rounded-lg overflow-hidden bg-black border-2 border-neutral-900">
+        <div
+          className="relative w-full aspect-[8/5] md:aspect-[16/9] min-h-[240px] md:min-h-[380px] overflow-hidden bg-black border-2 border-neon-cyan/40"
+          style={{ boxShadow: 'inset 0 0 20px rgba(0,240,255,0.06)' }}
+        >
           <VideoLayer
             videoRef={videoRef}
             isPlaying={isPlaying}
             onPlayPause={togglePlayPause}
             onPlayingChange={setIsPlaying}
           />
+        </div>
+
+        {/* Monitor label */}
+        <div className="flex items-center justify-center gap-3 mt-3">
+          <div className="h-px flex-1 bg-neon-cyan/20" />
+          <p className="font-pixel text-[7px] text-neon-cyan/50 tracking-widest">COUP-TV · HOW TO PLAY</p>
+          <div className="h-px flex-1 bg-neon-cyan/20" />
         </div>
       </div>
     </div>
@@ -43,9 +64,7 @@ function VideoLayer({ videoRef, isPlaying, onPlayPause, onPlayingChange }) {
   const [timestamp, setTimestamp] = useState(new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimestamp(new Date());
-    }, 1000);
+    const interval = setInterval(() => setTimestamp(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -60,10 +79,6 @@ function VideoLayer({ videoRef, isPlaying, onPlayPause, onPlayingChange }) {
       setProgress((cur / dur) * 100);
     }
   };
-
-  const handleTimeUpdate = () => updateProgress();
-  const handleLoadedMetadata = () => updateProgress();
-  const handleSeeked = () => updateProgress();
 
   const handleSeek = (e) => {
     e.stopPropagation();
@@ -85,59 +100,70 @@ function VideoLayer({ videoRef, isPlaying, onPlayPause, onPlayingChange }) {
   };
 
   return (
-    <div className="absolute inset-0 bg-slate-900 rounded-xl group flex flex-col">
+    <div className="absolute inset-0 bg-cyber-bg flex flex-col group">
+      {/* Scanlines on video */}
+      <div
+        className="absolute inset-0 pointer-events-none z-10"
+        style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px)' }}
+      />
+
       <div className="relative flex-1 min-h-0">
         <video
           ref={videoRef}
           src="/howToPlay.mp4"
-          className="w-full h-full object-cover rounded-t-xl"
+          className="w-full h-full object-cover"
           playsInline
           loop
           onPlay={() => onPlayingChange(true)}
           onPause={() => onPlayingChange(false)}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onSeeked={handleSeeked}
+          onTimeUpdate={updateProgress}
+          onLoadedMetadata={updateProgress}
+          onSeeked={updateProgress}
         />
-        <div className="absolute inset-0 bg-slate/20 rounded-t-xl pointer-events-none" />
-        
-        {/* Surveillance feed overlays */}
-        <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
-          <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-500/50" />
-          <span className="font-mono text-red-500 text-xs md:text-sm font-semibold tracking-wider">REC</span>
+
+        {/* REC indicator */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 pointer-events-none z-20">
+          <div className="w-2.5 h-2.5 bg-neon-red animate-pulse" style={{ boxShadow: '0 0 6px var(--neon-red)' }} />
+          <span className="font-pixel text-[8px] text-neon-red glow-red">REC</span>
         </div>
-        
-        <div className="absolute top-3 right-3 font-mono text-white/90 text-xs md:text-sm bg-black/50 px-2 py-1 rounded pointer-events-none">
-          {timestamp.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} {timestamp.toLocaleTimeString('en-US', { hour12: false })}
+
+        {/* Timestamp */}
+        <div className="absolute top-3 right-3 font-mono text-[10px] text-neon-green/80 bg-black/70 px-2 py-0.5 pointer-events-none z-20"
+          style={{ border: '1px solid rgba(0,255,65,0.3)' }}>
+          {timestamp.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}{' '}
+          {timestamp.toLocaleTimeString('en-US', { hour12: false })}
         </div>
-        
-        <div className="absolute bottom-3 left-3 font-mono text-white/80 text-xs bg-black/50 px-2 py-1 rounded pointer-events-none">
-          CAM-01 · MAIN LOBBY
+
+        {/* Camera label */}
+        <div className="absolute bottom-3 left-3 font-mono text-[9px] text-neon-cyan/70 bg-black/70 px-2 py-0.5 pointer-events-none z-20"
+          style={{ border: '1px solid rgba(0,240,255,0.3)' }}>
+          CAM-01 · COUP HQ
         </div>
+
+        {/* Play/Pause button */}
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPlayPause();
-          }}
-          className="absolute inset-0 flex items-center justify-center rounded-t-xl focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset"
+          onClick={(e) => { e.stopPropagation(); onPlayPause(); }}
+          className="absolute inset-0 flex items-center justify-center focus:outline-none z-20"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           <span
-            className={`flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full bg-black/50 text-white transition-opacity ${
-              isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-            }`}
+            className={`flex items-center justify-center w-14 h-14 bg-black/60 border-2 border-neon-cyan text-neon-cyan transition-opacity
+              ${isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}
+            style={{ boxShadow: isPlaying ? 'none' : '0 0 16px rgba(0,240,255,0.4)' }}
           >
             {isPlaying ? (
-              <PauseIcon className="w-7 h-7 md:w-8 md:h-8 ml-0.5" />
+              <PauseIcon className="w-6 h-6" />
             ) : (
-              <PlayIcon className="w-7 h-7 md:w-8 md:h-8 ml-1" />
+              <PlayIcon className="w-6 h-6 ml-0.5" />
             )}
           </span>
         </button>
       </div>
+
+      {/* Progress bar */}
       <div
-        className="flex items-center gap-2 px-2 py-2 bg-black/40 rounded-b-xl"
+        className="flex items-center gap-2 px-3 py-2 bg-black/70 border-t border-neon-cyan/20 cursor-pointer"
         onClick={handleSeek}
         role="slider"
         aria-label="Video progress"
@@ -149,20 +175,21 @@ function VideoLayer({ videoRef, isPlaying, onPlayPause, onPlayingChange }) {
           const v = videoRef.current;
           if (!v || !Number.isFinite(v.duration)) return;
           const step = e.key === "ArrowRight" || e.key === "ArrowUp" ? 5 : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -5 : 0;
-          if (step) {
-            e.preventDefault();
-            v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + step));
-          }
+          if (step) { e.preventDefault(); v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + step)); }
         }}
       >
-        <span className="text-xs text-white/90 tabular-nums min-w-[2.5rem]">{formatTime(currentTime)}</span>
-        <div className="flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer overflow-hidden">
+        <span className="font-mono text-[9px] text-neon-green/70 tabular-nums min-w-[2.5rem]">
+          {formatTime(currentTime)}
+        </span>
+        <div className="flex-1 h-1.5 bg-cyber-border cursor-pointer overflow-hidden">
           <div
-            className="h-full bg-accent rounded-full transition-[width] duration-75"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-neon-cyan transition-[width] duration-75"
+            style={{ width: `${progress}%`, boxShadow: '0 0 4px var(--neon-cyan)' }}
           />
         </div>
-        <span className="text-xs text-white/90 tabular-nums min-w-[2.5rem]">{formatTime(duration)}</span>
+        <span className="font-mono text-[9px] text-neon-green/70 tabular-nums min-w-[2.5rem] text-right">
+          {formatTime(duration)}
+        </span>
       </div>
     </div>
   );
@@ -175,6 +202,7 @@ function PlayIcon({ className }) {
     </svg>
   );
 }
+
 function PauseIcon({ className }) {
   return (
     <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden>

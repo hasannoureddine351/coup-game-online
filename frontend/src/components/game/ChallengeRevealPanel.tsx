@@ -49,21 +49,19 @@ export default function ChallengeRevealPanel({
   const isChallenged =
     challengedId != null && Number(challengedId) === Number(currentPlayer.id);
 
-  if (!isRevealPhase) {
-    return null;
-  }
-
-  if (!hasPendingReveal || !ch) {
-    return null;
-  }
+  if (!isRevealPhase || !hasPendingReveal || !ch) return null;
 
   if (!isChallenged) {
     return (
-      <div className="rounded-xl border border-amber-600/40 bg-amber-950/30 p-5 text-center">
-        <p className="text-amber-100/90">
-          Waiting for <span className="font-semibold text-coup-gold">{challengedName}</span> to choose
-          which influence to reveal.
+      <div className="pixel-panel-yellow p-5 text-center">
+        <p className="font-mono text-[10px] text-white/70">
+          Waiting for{' '}
+          <span className="font-pixel text-neon-yellow glow-yellow text-[9px]">{challengedName}</span>
+          {' '}to choose which influence to reveal.
         </p>
+        <div className="mt-2 flex justify-center">
+          <span className="font-pixel text-[8px] text-neon-yellow animate-blink">■ ■ ■</span>
+        </div>
       </div>
     );
   }
@@ -87,21 +85,24 @@ export default function ChallengeRevealPanel({
   };
 
   return (
-    <div className="rounded-xl border-2 border-amber-500/50 bg-gradient-to-b from-amber-950/40 to-neutral-950/80 p-5 shadow-lg">
+    <div className="pixel-panel-red p-5">
       <div className="mb-4 flex items-start gap-3">
-        <Eye className="mt-0.5 h-6 w-6 shrink-0 text-amber-400" aria-hidden />
+        <Eye className="mt-0.5 h-5 w-5 shrink-0 text-neon-red" aria-hidden />
         <div>
-          <h3 className="text-lg font-bold text-white">You were challenged</h3>
-          <p className="mt-1 text-sm text-neutral-300">
-            Choose <span className="font-semibold text-white">one</span> of your hidden cards to reveal.
-            If it matches the claimed role, your claim stands; if not, you lose this influence. You may
-            reveal any card — even bluff by showing a different role than you actually hold.
+          <h3 className="font-pixel text-[10px] text-neon-red glow-red tracking-widest mb-2">
+            ⚠ YOU WERE CHALLENGED
+          </h3>
+          <p className="font-mono text-[10px] text-white/70 leading-relaxed">
+            Choose <span className="font-bold text-white">one</span> of your hidden cards to reveal.
+            If it matches the claimed role, your claim stands; otherwise you lose this influence.
           </p>
         </div>
       </div>
 
+      <div className="pixel-divider mb-4" />
+
       {hiddenCards.length === 0 ? (
-        <p className="text-sm text-red-300">No hidden cards to reveal.</p>
+        <p className="font-mono text-[10px] text-neon-red">No hidden cards to reveal.</p>
       ) : (
         <div className="flex flex-wrap gap-3">
           {hiddenCards.map((card) => (
@@ -110,7 +111,11 @@ export default function ChallengeRevealPanel({
               type="button"
               disabled={revealChallengeCard.isPending}
               onClick={() => handleReveal(card.id)}
-              className="min-h-[48px] min-w-[7rem] rounded-lg border-2 border-coup-gold/60 bg-neutral-900/80 px-4 py-3 text-center font-bold text-white transition hover:border-coup-gold hover:bg-neutral-800 disabled:opacity-50 touch-manipulation"
+              className="bg-cyber-panel border-2 border-neon-red px-5 py-3 text-center font-pixel text-[9px] text-neon-red glow-red
+                hover:bg-neon-red/15 transition-all duration-75 touch-manipulation
+                disabled:opacity-50
+                active:translate-y-[3px]"
+              style={{ boxShadow: '4px 4px 0px #000, 0 0 8px rgba(255,0,85,0.3)', minWidth: '7rem' }}
             >
               {card.card_type}
             </button>

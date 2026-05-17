@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, HasOne};
 
 class GameAction extends Model
 {
@@ -82,6 +80,14 @@ class GameAction extends Model
     public function block(): HasOne
     {
         return $this->hasOne(Block::class);
+    }
+
+    /**
+     * Pass votes recorded for multi-player pass rounds (action_claim, block_declaration, block_claim).
+     */
+    public function phasePasses(): HasMany
+    {
+        return $this->hasMany(GameActionPhasePass::class, 'game_action_id');
     }
 
     /**

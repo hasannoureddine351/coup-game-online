@@ -13,17 +13,21 @@ export default function PlayerHand({ player }: PlayerHandProps) {
   }
 
   return (
-    <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6">
-      <h2 className="text-xl font-bold mb-4">Your Influence Cards</h2>
-      
-      <div className="flex gap-4 justify-center">
+    <div className="pixel-panel-yellow p-4">
+      <h2 className="font-pixel text-neon-yellow text-[10px] glow-yellow tracking-widest mb-4">
+        ▸ YOUR INFLUENCE CARDS
+      </h2>
+
+      <div className="pixel-divider mb-4" />
+
+      <div className="flex gap-4 justify-center flex-wrap">
         {activeCards.map((card) => (
           <CharacterCard key={card.id} card={card} />
         ))}
       </div>
 
-      <p className="text-neutral-400 text-sm text-center mt-4">
-        Keep your cards secret. They represent your influence in the game.
+      <p className="font-mono text-white/40 text-[10px] text-center mt-4 uppercase tracking-wider">
+        Keep your cards secret — they are your influence in the game.
       </p>
     </div>
   );

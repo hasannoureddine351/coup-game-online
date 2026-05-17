@@ -12,7 +12,7 @@ use App\Events\GameStarted;
 use App\Events\ActionDeclared;
 use App\Events\ChallengeMade;
 use App\Events\BlockDeclared;
-use App\Events\GameStateUpdated;
+use App\Support\GameStateBroadcaster;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +39,7 @@ class GameController extends Controller
                     'challenge.challenger.user',
                     'challenge.challengedPlayer.user',
                     'block.blocker.user',
+                    'phasePasses',
                 ]);
             },
             'exchangeTempDeckCards',
@@ -169,6 +170,7 @@ class GameController extends Controller
                     'challenge.challenger.user',
                     'challenge.challengedPlayer.user',
                     'block.blocker.user',
+                    'phasePasses',
                 ]);
             },
             'exchangeTempDeckCards',
@@ -279,7 +281,7 @@ class GameController extends Controller
         $gamePlayer->is_ready = !$gamePlayer->is_ready;
         $gamePlayer->save();
 
-        event(new GameStateUpdated($game->fresh(['players.user']), "{$user->username} is " . ($gamePlayer->is_ready ? 'ready' : 'not ready')));
+        GameStateBroadcaster::dispatch($game->fresh(['players.user']), "{$user->username} is " . ($gamePlayer->is_ready ? 'ready' : 'not ready'));
 
         return response()->json($game->fresh(['players.user']));
     }
@@ -331,7 +333,7 @@ class GameController extends Controller
         try {
             $action = $gameService->submitAction($game, $player->id, $validated);
             event(new ActionDeclared($action));
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            GameStateBroadcaster::dispatch($game->fresh(['players.user', 'players.cards']));
             return response()->json($action);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -359,7 +361,7 @@ class GameController extends Controller
         try {
             $challenge = $gameService->submitChallenge($action, $challenger->id);
             event(new ChallengeMade($challenge));
-            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
+            GameStateBroadcaster::dispatch($game->fresh($this->relationsForGameStateBroadcast()));
             return response()->json($challenge);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -391,7 +393,7 @@ class GameController extends Controller
         try {
             $block = $gameService->submitBlock($action, $blocker->id, $validated['claimed_character']);
             event(new BlockDeclared($block));
-            event(new GameStateUpdated($game->fresh(['players.user', 'players.cards'])));
+            GameStateBroadcaster::dispatch($game->fresh(['players.user', 'players.cards']));
             return response()->json($block);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -424,7 +426,7 @@ class GameController extends Controller
         try {
             $challenge = $gameService->submitBlockChallenge($block, $challenger->id);
             event(new ChallengeMade($challenge));
-            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
+            GameStateBroadcaster::dispatch($game->fresh($this->relationsForGameStateBroadcast()));
             return response()->json($challenge);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -455,7 +457,7 @@ class GameController extends Controller
 
         try {
             $challenge = $gameService->revealChallengeCard($action, $player, $validated['player_card_id']);
-            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
+            GameStateBroadcaster::dispatch($game->fresh($this->relationsForGameStateBroadcast()));
 
             return response()->json($challenge);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -479,7 +481,7 @@ class GameController extends Controller
 
         try {
             $gameService->resolveAction($action);
-            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast())));
+            GameStateBroadcaster::dispatch($game->fresh($this->relationsForGameStateBroadcast()));
             return response()->json(['message' => 'Action resolved successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -505,7 +507,7 @@ class GameController extends Controller
 
         try {
             $gameService->passPhase($game, $player);
-            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast()), 'Phase passed'));
+            GameStateBroadcaster::dispatch($game->fresh($this->relationsForGameStateBroadcast()), 'Phase passed');
             return response()->json(['message' => 'Phase passed successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -535,7 +537,7 @@ class GameController extends Controller
 
         try {
             $gameService->chooseCardToLose($player, $validated['card_id']);
-            event(new GameStateUpdated($game->fresh($this->relationsForGameStateBroadcast()), "{$user->username} lost influence"));
+            GameStateBroadcaster::dispatch($game->fresh($this->relationsForGameStateBroadcast()), "{$user->username} lost influence");
             return response()->json(['message' => 'Card revealed successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -585,10 +587,11 @@ class GameController extends Controller
                         'challenge.challenger.user',
                         'challenge.challengedPlayer.user',
                         'block.blocker.user',
+                        'phasePasses',
                     ]);
                 },
             ]);
-            event(new GameStateUpdated($fresh, "{$user->username} finished exchange"));
+            GameStateBroadcaster::dispatch($fresh, "{$user->username} finished exchange");
 
             return response()->json(['message' => 'Exchange completed']);
         } catch (\Illuminate\Validation\ValidationException $e) {
