@@ -6,16 +6,21 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
-     * Truncates all game-related tables. Users are preserved.
+     * Wipe all games/lobbies and related rows. Users are preserved.
      */
     public function up(): void
     {
         $driver = DB::connection()->getDriverName();
 
         if ($driver === 'pgsql') {
+            // DELETE works when tables are owned by another role (e.g. postgres);
+            // TRUNCATE ... RESTART IDENTITY requires table/sequence ownership.
             DB::table('games')->delete();
-        } elseif ($driver === 'mysql') {
+
+            return;
+        }
+
+        if ($driver === 'mysql') {
             DB::statement('SET FOREIGN_KEY_CHECKS=0');
             foreach ([
                 'game_action_phase_passes',
@@ -31,28 +36,27 @@ return new class extends Migration
                 DB::table($table)->truncate();
             }
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        } else {
-            foreach ([
-                'game_action_phase_passes',
-                'blocks',
-                'challenges',
-                'game_actions',
-                'player_cards',
-                'game_deck',
-                'game_state_snapshots',
-                'game_players',
-                'games',
-            ] as $table) {
-                DB::table($table)->truncate();
-            }
+
+            return;
+        }
+
+        foreach ([
+            'game_action_phase_passes',
+            'blocks',
+            'challenges',
+            'game_actions',
+            'player_cards',
+            'game_deck',
+            'game_state_snapshots',
+            'game_players',
+            'games',
+        ] as $table) {
+            DB::table($table)->truncate();
         }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        // No-op: data is not restored
+        // Irreversible data wipe.
     }
 };
