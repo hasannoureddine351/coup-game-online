@@ -112,8 +112,11 @@ export default function GamePage() {
 
   if (isLoading || !localGame) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 flex items-center justify-center">
-        <div className="text-white text-xl">Loading game...</div>
+      <div className="crt-wrapper min-h-screen bg-cyber-bg flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="pixel-spinner mx-auto" />
+          <p className="font-pixel text-neon-cyan text-xs glow-cyan animate-blink">LOADING GAME...</p>
+        </div>
       </div>
     );
   }
@@ -148,7 +151,7 @@ export default function GamePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white p-4 md:p-8">
+    <div className="crt-wrapper min-h-screen bg-cyber-bg text-white p-3 md:p-6">
       <GameOverModal
         open={isFinished}
         winnerName={winnerName}
@@ -157,12 +160,12 @@ export default function GamePage() {
         isDeleting={deleteGame.isPending}
       />
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8">
-          <div className="min-w-0 flex-1 space-y-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-6">
+          <div className="min-w-0 flex-1 space-y-4">
             {isWaiting && (
-              <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-6 text-center">
-                <h2 className="text-2xl font-bold mb-4">Waiting for game to start...</h2>
-                <p className="text-neutral-400">All players must be ready before the game can begin.</p>
+              <div className="pixel-panel-cyan p-6 text-center">
+                <h2 className="font-pixel text-neon-cyan text-sm glow-cyan mb-3">WAITING FOR PLAYERS</h2>
+                <p className="font-mono text-white/60 text-sm">All players must be ready before the game can begin.</p>
               </div>
             )}
 
@@ -214,7 +217,7 @@ export default function GamePage() {
             )}
           </div>
 
-          <aside className="w-full shrink-0 xl:w-[min(100%,22rem)] xl:sticky xl:top-4 xl:self-start xl:max-h-none">
+          <aside className="w-full shrink-0 xl:w-[min(100%,24rem)] xl:sticky xl:top-4 xl:self-start xl:max-h-none">
             <ActionLogPanel game={localGame} />
           </aside>
         </div>
