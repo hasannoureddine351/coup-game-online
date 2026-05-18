@@ -12,6 +12,8 @@ import PrivateRoute from './components/auth/PrivateRoute';
 import LobbyListPage from './pages/LobbyListPage';
 import LobbyRoomPage from './pages/LobbyRoomPage';
 import GamePage from './pages/GamePage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import DiscussionPage from './pages/DiscussionPage';
 
 
 
@@ -34,6 +36,8 @@ const router = createBrowserRouter([
       { path: "lobby", element: <LobbyListPage /> },
       { path: "lobby/:id", element: <LobbyRoomPage /> },
       { path: "game", element: <GamePage /> },
+      { path: "leaderboard", element: <LeaderboardPage /> },
+      { path: "discussion", element: <DiscussionPage /> },
     ],
   },
 

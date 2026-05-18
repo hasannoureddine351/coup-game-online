@@ -9,6 +9,7 @@ import {
 type ActionLogPanelProps = {
   game: Game;
   className?: string;
+  embedded?: boolean;
 };
 
 function terminalStatusLabel(status: string): { label: string; color: string } {
@@ -40,9 +41,74 @@ function TerminalTrafficDots() {
   );
 }
 
-export default function ActionLogPanel({ game, className = "" }: ActionLogPanelProps) {
+function ActionLogList({
+  entries,
+  scrollRef,
+  className,
+}: {
+  entries: ReturnType<typeof buildActionLogParts>[];
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  className?: string;
+}) {
+  return (
+    <div ref={scrollRef} className={className}>
+      {entries.length === 0 ? (
+        <p className="px-1 py-5 text-center font-mono text-[10px] text-neon-purple/40">
+          &gt; Awaiting game events...
+        </p>
+      ) : (
+        <ol className="space-y-2">
+          {entries.map((line, i) => {
+            const { label, color } = terminalStatusLabel(line.status);
+            return (
+              <li
+                key={line.id}
+                className="border border-neon-purple/15 bg-black/40 px-3 py-2.5"
+                style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <span className="font-mono text-[9px] text-neon-purple/40 shrink-0">
+                    [{padIndex(i)}]
+                  </span>
+                  <span
+                    className={`font-pixel text-[7px] border px-1.5 py-0.5 shrink-0 ${color}`}
+                    style={{ boxShadow: '1px 1px 0px #000' }}
+                  >
+                    {label}
+                  </span>
+                </div>
+                <p className="font-mono text-[10px] leading-relaxed">
+                  <span className="text-neon-yellow">{line.actorName}</span>{" "}
+                  <span className="text-neon-purple/80">{line.verb}</span>
+                  {line.claim && (
+                    <span className="text-neon-cyan"> (claims {line.claim})</span>
+                  )}
+                  {line.targetName && (
+                    <span className="text-neon-red"> → {line.targetName}</span>
+                  )}
+                </p>
+                {line.challengeSummary && (
+                  <p className="mt-1.5 pl-3 font-mono text-[9px] text-neon-yellow/80 border-l-2 border-neon-yellow/40">
+                    &gt; {line.challengeSummary}
+                  </p>
+                )}
+                {line.blockSummary && (
+                  <p className="mt-1.5 pl-3 font-mono text-[9px] text-neon-cyan/80 border-l-2 border-neon-cyan/40">
+                    &gt; {line.blockSummary}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+export default function ActionLogPanel({ game, className = "", embedded = false }: ActionLogPanelProps) {
   const [expanded, setExpanded] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia("(min-width: 1280px)").matches : true
+    embedded ? true : typeof window !== "undefined" ? window.matchMedia("(min-width: 1280px)").matches : true
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -60,6 +126,18 @@ export default function ActionLogPanel({ game, className = "" }: ActionLogPanelP
     }
   }, [entries.length, expanded]);
 
+  const listClassName = embedded
+    ? "overflow-y-auto overscroll-contain"
+    : "max-h-[min(55vh,28rem)] xl:max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain px-3 pb-3 pt-2";
+
+  if (embedded) {
+    return (
+      <div className={className} aria-label="Game action log">
+        <ActionLogList entries={entries} scrollRef={scrollRef} className={listClassName} />
+      </div>
+    );
+  }
+
   return (
     <section
       className={`terminal-log overflow-hidden flex flex-col ${className}`}
@@ -72,7 +150,6 @@ export default function ActionLogPanel({ game, className = "" }: ActionLogPanelP
           bg-neon-purple/5 hover:bg-neon-purple/10 border-b border-neon-purple/30 transition-colors"
       >
         <TerminalTrafficDots />
-
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="font-pixel text-[9px] text-neon-purple glow-purple tracking-widest">
             ACTIVITY LOG
@@ -81,7 +158,6 @@ export default function ActionLogPanel({ game, className = "" }: ActionLogPanelP
             {count === 0 ? "NO EVENTS" : `${count} EVENT${count === 1 ? "" : "S"} LOGGED`}
           </span>
         </div>
-
         <span className="sr-only">{expanded ? "Collapse" : "Expand"}</span>
         {expanded ? (
           <ChevronUp className="h-4 w-4 shrink-0 text-neon-purple/60" aria-hidden />
@@ -99,64 +175,7 @@ export default function ActionLogPanel({ game, className = "" }: ActionLogPanelP
       )}
 
       {expanded && (
-        <div
-          ref={scrollRef}
-          className="max-h-[min(55vh,28rem)] xl:max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain px-3 pb-3 pt-2"
-        >
-          {entries.length === 0 ? (
-            <p className="px-1 py-5 text-center font-mono text-[10px] text-neon-purple/40">
-              &gt; Awaiting game events...
-            </p>
-          ) : (
-            <ol className="space-y-2">
-              {entries.map((line, i) => {
-                const { label, color } = terminalStatusLabel(line.status);
-                return (
-                  <li
-                    key={line.id}
-                    className="border border-neon-purple/15 bg-black/40 px-3 py-2.5"
-                    style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <span className="font-mono text-[9px] text-neon-purple/40 shrink-0">
-                        [{padIndex(i)}]
-                      </span>
-                      <span
-                        className={`font-pixel text-[7px] border px-1.5 py-0.5 shrink-0 ${color}`}
-                        style={{ boxShadow: '1px 1px 0px #000' }}
-                      >
-                        {label}
-                      </span>
-                    </div>
-
-                    <p className="font-mono text-[10px] leading-relaxed">
-                      <span className="text-neon-yellow">{line.actorName}</span>{" "}
-                      <span className="text-neon-purple/80">{line.verb}</span>
-                      {line.claim && (
-                        <span className="text-neon-cyan"> (claims {line.claim})</span>
-                      )}
-                      {line.targetName && (
-                        <span className="text-neon-red"> → {line.targetName}</span>
-                      )}
-                    </p>
-
-                    {line.challengeSummary && (
-                      <p className="mt-1.5 pl-3 font-mono text-[9px] text-neon-yellow/80 border-l-2 border-neon-yellow/40">
-                        &gt; {line.challengeSummary}
-                      </p>
-                    )}
-
-                    {line.blockSummary && (
-                      <p className="mt-1.5 pl-3 font-mono text-[9px] text-neon-cyan/80 border-l-2 border-neon-cyan/40">
-                        &gt; {line.blockSummary}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </div>
+        <ActionLogList entries={entries} scrollRef={scrollRef} className={listClassName} />
       )}
     </section>
   );

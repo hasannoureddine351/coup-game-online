@@ -26,6 +26,17 @@ export const ENDPOINTS = {
     PASS: (id: number) => `/games/${id}/pass`,
     CHOOSE_CARD: (id: number) => `/games/${id}/choose-card`,
     EXCHANGE_FINALIZE: (id: number) => `/games/${id}/exchange/finalize`,
+    MESSAGES: (id: number) => `/games/${id}/messages`,
+    POLLS: (id: number) => `/games/${id}/polls`,
+    POLL_VOTE: (gameId: number, pollId: number) => `/games/${gameId}/polls/${pollId}/vote`,
+  },
+  leaderboard: {
+    LIST: `/leaderboard`,
+  },
+  discussion: {
+    POSTS: `/discussion/posts`,
+    POST: (id: number) => `/discussion/posts/${id}`,
+    REPLIES: (id: number) => `/discussion/posts/${id}/replies`,
   },
 } as const;
 

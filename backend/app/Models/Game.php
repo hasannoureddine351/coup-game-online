@@ -22,6 +22,7 @@ class Game extends Model
         'current_turn_player_id',
         'turn_phase',
         'finished_at',
+        'stats_recorded',
     ];
 
     /**
@@ -34,6 +35,7 @@ class Game extends Model
         return [
             'finished_at' => 'datetime',
             'max_players' => 'integer',
+            'stats_recorded' => 'boolean',
         ];
     }
 

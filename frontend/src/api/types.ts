@@ -142,3 +142,89 @@ export interface Block {
   blocker?: GamePlayer;
   action?: GameAction;
 }
+
+export interface LeaderboardPlayerStats {
+  successful_bluffs: number;
+  failed_bluffs: number;
+  misleading_reveals: number;
+  correct_challenges: number;
+  incorrect_challenges: number;
+  allied_challenges_received: number;
+  allied_challenges_made: number;
+  polls_created: number;
+  incitement_polls_created: number;
+  poll_yes_votes_received: number;
+  poll_votes_received: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: number;
+  username: string;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+  bluff_rate: number;
+  challenge_accuracy: number;
+  poll_agreement_rate: number;
+  stats: LeaderboardPlayerStats;
+}
+
+export interface LeaderboardResponse {
+  data: LeaderboardEntry[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
+export interface DiscussionPost {
+  id: number;
+  user_id: number;
+  parent_id: number | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user?: Pick<User, 'id' | 'username'>;
+  replies?: DiscussionPost[];
+  replies_count?: number;
+}
+
+export interface GameMessage {
+  id: number;
+  game_id: number;
+  user_id: number;
+  body: string;
+  created_at: string;
+  user?: Pick<User, 'id' | 'username'>;
+}
+
+export interface GamePollVote {
+  id: number;
+  poll_id: number;
+  user_id: number;
+  vote: 'yes' | 'no';
+  created_at: string;
+  user?: Pick<User, 'id' | 'username'>;
+}
+
+export interface GamePoll {
+  id: number;
+  game_id: number;
+  created_by_user_id: number;
+  actor_player_id: number;
+  action_type: ActionType;
+  target_player_id: number | null;
+  status: 'open' | 'closed';
+  closes_at: string;
+  closed_at: string | null;
+  created_at: string;
+  creator?: Pick<User, 'id' | 'username'>;
+  actor_player?: GamePlayer;
+  actorPlayer?: GamePlayer;
+  target_player?: GamePlayer;
+  targetPlayer?: GamePlayer;
+  votes?: GamePollVote[];
+}

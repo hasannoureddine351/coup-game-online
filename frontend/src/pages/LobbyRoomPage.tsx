@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
+import AppNav from "../components/layout/AppNav";
 import { useAuth } from "../contexts/auth-context";
 import { useGameData } from "../hooks/useGameData";
 import { useGameWebSocket } from "../hooks/useGameWebSocket";
@@ -55,15 +56,16 @@ export default function LobbyRoomPage() {
   return (
     <div className="crt-wrapper min-h-screen flex flex-col bg-cyber-bg">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-cyber-panel border-b-2 border-neon-cyan"
+      <header className="flex items-center justify-between px-4 sm:px-6 py-4 bg-cyber-panel border-b-2 border-neon-cyan"
         style={{ boxShadow: '0 2px 0px rgba(0,240,255,0.2)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 bg-neon-cyan animate-blink" style={{ boxShadow: '0 0 6px var(--neon-cyan)' }} />
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-2.5 h-2.5 shrink-0 bg-neon-cyan animate-blink" style={{ boxShadow: '0 0 6px var(--neon-cyan)' }} />
           <p className="font-pixel text-neon-cyan text-sm glow-cyan tracking-widest">COUP</p>
+          <AppNav />
         </div>
         <button
           onClick={() => navigate("/lobby")}
-          className="font-pixel text-[8px] text-neon-cyan/70 hover:text-neon-cyan transition-colors tracking-widest"
+          className="hidden sm:inline font-pixel text-[8px] text-neon-cyan/70 hover:text-neon-cyan transition-colors tracking-widest shrink-0"
         >
           ← BACK TO LOBBY
         </button>

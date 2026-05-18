@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DiscussionController;
 use App\Http\Controllers\Api\GameController;
+use App\Http\Controllers\Api\GameMessageController;
+use App\Http\Controllers\Api\GamePollController;
+use App\Http\Controllers\Api\LeaderboardController;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +16,16 @@ Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('refresh', [AuthController::class, 'refresh']);
     Route::get('me', [AuthController::class, 'me'])->middleware('auth:api');
+});
+
+Route::middleware('auth:api')->get('leaderboard', [LeaderboardController::class, 'index']);
+
+Route::middleware('auth:api')->prefix('discussion')->group(function () {
+    Route::get('posts', [DiscussionController::class, 'index']);
+    Route::get('posts/{id}', [DiscussionController::class, 'show']);
+    Route::post('posts', [DiscussionController::class, 'store']);
+    Route::post('posts/{id}/replies', [DiscussionController::class, 'reply']);
+    Route::delete('posts/{id}', [DiscussionController::class, 'destroy']);
 });
 
 Route::middleware('auth:api')->prefix('games')->group(function () {
@@ -33,4 +47,11 @@ Route::middleware('auth:api')->prefix('games')->group(function () {
     Route::post('/{id}/pass', [GameController::class, 'passPhase']);
     Route::post('/{id}/choose-card', [GameController::class, 'chooseCardToLose']);
     Route::post('/{id}/exchange/finalize', [GameController::class, 'finalizeAmbassadorExchange']);
+
+    Route::get('/{id}/messages', [GameMessageController::class, 'index']);
+    Route::post('/{id}/messages', [GameMessageController::class, 'store']);
+
+    Route::get('/{id}/polls', [GamePollController::class, 'index']);
+    Route::post('/{id}/polls', [GamePollController::class, 'store']);
+    Route::post('/{id}/polls/{pollId}/vote', [GamePollController::class, 'vote']);
 });
