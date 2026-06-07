@@ -16,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class GameService
 {
+    public function __construct(
+        protected PlayerStatsService $playerStats,
+    ) {}
+
     const CARD_TYPES = ['Duke', 'Assassin', 'Captain', 'Ambassador', 'Contessa'];
     const CARDS_PER_TYPE = 3;
     const STARTING_COINS = 2;
@@ -249,7 +253,11 @@ class GameService
             $lockedGame->turn_phase = 'challenge_reveal';
             $lockedGame->save();
 
-            return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+            $freshChallenge = $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+            $action->load(['player', 'targetPlayer']);
+            $this->playerStats->recordAlliedChallenge($action, $challenger, false);
+
+            return $freshChallenge;
         });
     }
 
@@ -388,7 +396,11 @@ class GameService
             $lockedGame->turn_phase = 'challenge_reveal';
             $lockedGame->save();
 
-            return $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+            $freshChallenge = $challenge->fresh(['challenger.user', 'challengedPlayer.user']);
+            $action->load(['player', 'targetPlayer', 'block.blocker']);
+            $this->playerStats->recordAlliedChallenge($action, $challenger, true);
+
+            return $freshChallenge;
         });
     }
 
@@ -441,6 +453,7 @@ class GameService
         }
 
         $revealedMatchesClaim = (string) $card->card_type === (string) $claimedCharacter;
+        $hadClaimedRoleBeforeReveal = $this->playerStats->playerHadCharacter($player, $claimedCharacter);
 
         $card->is_revealed = true;
         $card->save();
@@ -455,6 +468,14 @@ class GameService
         if ($revealedMatchesClaim) {
             $challenge->outcome = 'challenged_wins';
             $challenge->save();
+
+            $this->playerStats->recordChallengeReveal(
+                $challenge,
+                $player,
+                $claimedCharacter,
+                $hadClaimedRoleBeforeReveal,
+                true,
+            );
 
             if ($isActionClaimChallenge) {
                 $this->exchangeCard($player, $card, $game);
@@ -476,6 +497,14 @@ class GameService
         } else {
             $challenge->outcome = 'challenger_wins';
             $challenge->save();
+
+            $this->playerStats->recordChallengeReveal(
+                $challenge,
+                $player,
+                $claimedCharacter,
+                $hadClaimedRoleBeforeReveal,
+                false,
+            );
 
             if ($player->cards()->where('is_revealed', false)->where('is_discarded', false)->count() === 0) {
                 $player->is_eliminated = true;
@@ -832,6 +861,8 @@ class GameService
             : 'Game over';
 
         GameStateBroadcaster::dispatch($fresh, $message);
+
+        $this->playerStats->recordGameEnd($fresh);
     }
 
     public function passPhase(Game $game, GamePlayer $passingPlayer): void
@@ -908,9 +939,12 @@ class GameService
                     $pendingAction->save();
                     $lockedGame->turn_phase = 'resolution';
                     $lockedGame->save();
+                    $this->recordUnchallengedClaimStats($pendingAction, true);
 
                     return;
                 }
+
+                $this->recordUnchallengedClaimStats($pendingAction, false);
 
                 $lockedGame->turn_phase = $this->actionHasBlockPhase($pendingAction->action_type) ? 'block' : 'resolution';
                 $lockedGame->save();
@@ -930,8 +964,32 @@ class GameService
                 $pendingAction->save();
                 $lockedGame->turn_phase = 'resolution';
                 $lockedGame->save();
+                $this->recordUnchallengedClaimStats($pendingAction, true);
             }
         });
+    }
+
+    protected function recordUnchallengedClaimStats(GameAction $action, bool $blockClaimRound): void
+    {
+        $wasChallenged = Challenge::query()->where('game_action_id', $action->id)->exists();
+        if ($wasChallenged) {
+            return;
+        }
+
+        $action->loadMissing(['player', 'block.blocker']);
+
+        if ($blockClaimRound) {
+            $block = $action->block;
+            if ($block?->claimed_character && $block->blocker) {
+                $this->playerStats->recordUnchallengedBluff($block->blocker, $block->claimed_character);
+            }
+
+            return;
+        }
+
+        if ($action->claimed_character && $action->player) {
+            $this->playerStats->recordUnchallengedBluff($action->player, $action->claimed_character);
+        }
     }
 
     protected function deletePhasePassesForAction(GameAction $action): void

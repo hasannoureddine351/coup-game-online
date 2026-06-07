@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { initEcho, disconnectEcho } from '../lib/echo';
 import { gameKeys } from './useGameData';
-import type { CurrentGame, Game } from '../api/types';
+import type { CurrentGame, Game, GameMessage, GamePoll } from '../api/types';
 
 interface GameWebSocketCallbacks {
   onGameStarted?: (data: any) => void;
@@ -10,6 +10,10 @@ interface GameWebSocketCallbacks {
   onChallengeMade?: (data: any) => void;
   onBlockDeclared?: (data: any) => void;
   onGameStateUpdated?: (data: any) => void;
+  onGameMessageSent?: (data: { message: GameMessage }) => void;
+  onGamePollCreated?: (data: { poll: GamePoll }) => void;
+  onGamePollUpdated?: (data: { poll: GamePoll }) => void;
+  onGamePollClosed?: (data: { poll: GamePoll }) => void;
 }
 
 function mergeGameIntoCurrentGameCache(queryClient: QueryClient, incoming: Game): void {
@@ -68,6 +72,18 @@ export const useGameWebSocket = (gameId: number | null, token: string | null, ca
           invalidateGameQueries();
         }
         callbacksRef.current?.onGameStateUpdated?.(event);
+      })
+      .listen('GameMessageSent', (event: any) => {
+        callbacksRef.current?.onGameMessageSent?.(event);
+      })
+      .listen('GamePollCreated', (event: any) => {
+        callbacksRef.current?.onGamePollCreated?.(event);
+      })
+      .listen('GamePollUpdated', (event: any) => {
+        callbacksRef.current?.onGamePollUpdated?.(event);
+      })
+      .listen('GamePollClosed', (event: any) => {
+        callbacksRef.current?.onGamePollClosed?.(event);
       });
 
     return () => {
@@ -76,6 +92,10 @@ export const useGameWebSocket = (gameId: number | null, token: string | null, ca
       channel.stopListening('ChallengeMade');
       channel.stopListening('BlockDeclared');
       channel.stopListening('GameStateUpdated');
+      channel.stopListening('GameMessageSent');
+      channel.stopListening('GamePollCreated');
+      channel.stopListening('GamePollUpdated');
+      channel.stopListening('GamePollClosed');
       disconnectEcho(echoRef.current);
       echoRef.current = null;
     };

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\PlayerStatsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,8 @@ class AuthController extends Controller
             'password' => Hash::make($request->input('password')),
             'coins_balance' => 0,
         ]);
+
+        app(PlayerStatsService::class)->ensureStats($user);
 
         $token = auth('api')->login($user);
 

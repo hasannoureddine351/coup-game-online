@@ -10,10 +10,10 @@ import PlayerHand from '../components/game/PlayerHand';
 import ChallengeBlockPanel from '../components/game/ChallengeBlockPanel';
 import AmbassadorExchangePanel from '../components/game/AmbassadorExchangePanel';
 import GameStatus from '../components/game/GameStatus';
-import ActionLogPanel from '../components/game/ActionLogPanel';
+import GameSidebarPanel from '../components/game/GameSidebarPanel';
 import ChallengeRevealPanel from '../components/game/ChallengeRevealPanel';
 import { toast } from 'sonner';
-import type { Game, GameAction, DeckCard } from '../api/types';
+import type { Game, GameAction, DeckCard, GameMessage, GamePoll } from '../api/types';
 import { useAuth } from '../contexts/auth-context';
 
 /** Laravel may expose relation as snake_case or camelCase on WebSocket payloads. */
@@ -31,6 +31,8 @@ export default function GamePage() {
   
   const [localGame, setLocalGame] = useState(null as Game | null);
   const [latestAction, setLatestAction] = useState(null as GameAction | null);
+  const [liveMessage, setLiveMessage] = useState(null as GameMessage | null);
+  const [livePoll, setLivePoll] = useState(null as GamePoll | null);
 
   useEffect(() => {
     if (currentGame && currentGame.id) {
@@ -90,6 +92,18 @@ export default function GamePage() {
       }
       setLocalGame(event.game);
       syncLatestAction(event.game);
+    },
+    onGameMessageSent: (event) => {
+      if (event?.message) setLiveMessage(event.message);
+    },
+    onGamePollCreated: (event) => {
+      if (event?.poll) setLivePoll(event.poll);
+    },
+    onGamePollUpdated: (event) => {
+      if (event?.poll) setLivePoll(event.poll);
+    },
+    onGamePollClosed: (event) => {
+      if (event?.poll) setLivePoll(event.poll);
     },
   });
 
@@ -218,7 +232,11 @@ export default function GamePage() {
           </div>
 
           <aside className="w-full shrink-0 xl:w-[min(100%,24rem)] xl:sticky xl:top-4 xl:self-start xl:max-h-none">
-            <ActionLogPanel game={localGame} />
+            <GameSidebarPanel
+              game={localGame}
+              externalMessage={liveMessage}
+              externalPoll={livePoll}
+            />
           </aside>
         </div>
       </div>
