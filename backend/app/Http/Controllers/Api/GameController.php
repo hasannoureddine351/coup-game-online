@@ -13,6 +13,8 @@ use App\Events\ActionDeclared;
 use App\Events\ChallengeMade;
 use App\Events\BlockDeclared;
 use App\Support\GameStateBroadcaster;
+use App\Support\ActionEagerLoad;
+use App\Support\LobbyBroadcaster;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,8 +38,7 @@ class GameController extends Controller
                 $q->orderBy('id', 'desc')->limit(150)->with([
                     'player.user',
                     'targetPlayer.user',
-                    'challenge.challenger.user',
-                    'challenge.challengedPlayer.user',
+                    'challenge' => ActionEagerLoad::pendingChallengeFirst(),
                     'block.blocker.user',
                     'phasePasses',
                 ]);
@@ -97,6 +98,8 @@ class GameController extends Controller
             return $game->load(['players.user']);
         });
 
+        LobbyBroadcaster::dispatch('created', $game->id);
+
         return response()->json($game);
     }
 
@@ -144,6 +147,9 @@ class GameController extends Controller
 
         $game->load(['players.user']);
 
+        GameStateBroadcaster::dispatch($game, "{$user->username} joined the game");
+        LobbyBroadcaster::dispatch('joined', $game->id);
+
         return response()->json($game);
     }
 
@@ -167,8 +173,7 @@ class GameController extends Controller
                 $q->orderBy('id', 'desc')->limit(150)->with([
                     'player.user',
                     'targetPlayer.user',
-                    'challenge.challenger.user',
-                    'challenge.challengedPlayer.user',
+                    'challenge' => ActionEagerLoad::pendingChallengeFirst(),
                     'block.blocker.user',
                     'phasePasses',
                 ]);
@@ -235,7 +240,11 @@ class GameController extends Controller
 
         if ($game->players()->count() === 0) {
             $game->delete();
+        } else {
+            GameStateBroadcaster::dispatch($game, "{$user->username} left the game");
         }
+
+        LobbyBroadcaster::dispatch('left', $game->id);
 
         return response()->json(['message' => 'Left game successfully.']);
     }
@@ -257,7 +266,10 @@ class GameController extends Controller
         $gamePlayer->delete();
         if ($game->players()->count() === 0) {
             $game->delete();
+        } else {
+            GameStateBroadcaster::dispatch($game, "{$user->username} left the game");
         }
+        LobbyBroadcaster::dispatch('left', $game->id);
         return response()->json(['message' => 'Left game successfully.']);
     }
 
@@ -584,8 +596,7 @@ class GameController extends Controller
                     $q->orderBy('id', 'desc')->limit(150)->with([
                         'player.user',
                         'targetPlayer.user',
-                        'challenge.challenger.user',
-                        'challenge.challengedPlayer.user',
+                        'challenge' => ActionEagerLoad::pendingChallengeFirst(),
                         'block.blocker.user',
                         'phasePasses',
                     ]);

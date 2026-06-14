@@ -6,10 +6,14 @@ import AppNav from "../components/layout/AppNav";
 import { useAuth } from "../contexts/auth-context";
 import type { Game } from "../api/types";
 import { useGameData } from "../hooks/useGameData";
+import { useLobbyWebSocket } from "../hooks/useLobbyWebSocket";
 
 export default function LobbyListPage() {
   const navigate = useNavigate();
-  const { logout, currentUser } = useAuth();
+  const { logout, currentUser, token } = useAuth();
+
+  // Live lobby: refresh the games list when anyone creates / joins / leaves.
+  useLobbyWebSocket(token);
   const {
     useGameListQuery,
     useCurrentGameQuery,
