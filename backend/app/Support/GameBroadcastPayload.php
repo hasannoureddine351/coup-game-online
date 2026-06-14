@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Support\ActionEagerLoad;
+
 /**
  * Eager-load shapes for GameStateUpdated broadcasts (keep under Reverb message size limits).
  */
@@ -29,12 +31,7 @@ final class GameBroadcastPayload
                         'targetPlayer.user' => function ($q) {
                             $q->select('id', 'username');
                         },
-                        'challenge.challenger.user' => function ($q) {
-                            $q->select('id', 'username');
-                        },
-                        'challenge.challengedPlayer.user' => function ($q) {
-                            $q->select('id', 'username');
-                        },
+                        'challenge' => ActionEagerLoad::pendingChallengeFirst(['id', 'username']),
                         'block.blocker.user' => function ($q) {
                             $q->select('id', 'username');
                         },
